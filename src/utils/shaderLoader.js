@@ -81,11 +81,7 @@ float random(vec2 co) {
 void main() {
     vec2 uv = gl_FragCoord.xy * texelSize;
 
-    // Dual-channel architecture (Neural Cellular Automata)
-    // R channel: Energy (fast, high-frequency, for color)
-    // G channel: Matter (slow, accumulated, for geometry)
     float currentEnergy = texture2D(field, uv).x;
-    float currentMatter = texture2D(field, uv).y;
     vec3 interaction = texture2D(interactionTexture, uv).rgb;
 
     float potential = 0.0;
@@ -137,14 +133,38 @@ void main() {
 
     newEnergy = clamp(newEnergy, 0.0, 1.0);
 
-    // G channel (Matter): Residual connection with slow accumulation
-    // Acts as physical mass that slowly follows energy flow
-    // 0.05 = low smoothness factor for viscous, honey-like movement
-    float newMatter = mix(currentMatter, newEnergy, 0.05);
-    newMatter = clamp(newMatter, 0.0, 1.0);
+    gl_FragColor = vec4(newEnergy, 0.0, 0.0, 1.0);
+}
+`;
+}
 
-    // Output dual-channel: R=Energy (flow), G=Matter (structure)
-    gl_FragColor = vec4(newEnergy, newMatter, 0.0, 1.0);
+/**
+ * Gets the heightMap shader for temporal smoothing
+ * Uses lerp (mix) to create inertia-based smooth terrain movement
+ * @returns {string} GLSL fragment shader code
+ */
+export function getHeightMapShader() {
+  return `
+uniform sampler2D fieldTexture;
+uniform sampler2D heightMap;
+uniform float smoothness;
+uniform vec2 texelSize;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy * texelSize;
+
+    // Current energy from simulation
+    float targetEnergy = texture2D(fieldTexture, uv).r;
+
+    // Previous smoothed height
+    float previousHeight = texture2D(heightMap, uv).r;
+
+    // Lerp with inertia: mix(old, new, smoothness)
+    // Lower smoothness = more viscous (honey-like)
+    // Higher smoothness = faster response
+    float currentHeight = mix(previousHeight, targetEnergy, smoothness);
+
+    gl_FragColor = vec4(currentHeight, 0.0, 0.0, 1.0);
 }
 `;
 }
@@ -155,7 +175,7 @@ void main() {
  */
 export function getDisplayVertexShader() {
   return `
-uniform sampler2D fieldTexture;
+uniform sampler2D heightMapTexture;
 uniform float displacementScale;
 varying vec2 vUv;
 varying float vHeight;
@@ -163,9 +183,9 @@ varying float vHeight;
 void main() {
     vUv = uv;
 
-    // G channel (Matter) for displacement - smooth, viscous terrain
-    // This channel slowly accumulates and provides stable geometry
-    float height = texture2D(fieldTexture, uv).g;
+    // Use smoothed heightMap for displacement (geometry)
+    // This provides temporal smoothing with inertia
+    float height = texture2D(heightMapTexture, uv).r;
     vHeight = height;
 
     // Create displaced position (2.5D terrain effect)
@@ -223,48 +243,35 @@ vec3 energyGradient(float energy) {
 }
 
 void main() {
-    // Dual-channel separation
-    float energy = texture2D(fieldTexture, vUv).r;  // R: Fast energy flow
-    float matter = texture2D(fieldTexture, vUv).g;  // G: Slow terrain structure
+    float energy = texture2D(fieldTexture, vUv).x;
 
-    // G channel (Matter) for normal calculation - smooth, stable structure
-    float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).g;
-    float heightR = texture2D(fieldTexture, vUv + vec2(texelSize, 0.0)).g;
-    float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).g;
-    float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).g;
+    // Calculate normal from height differences for lighting
+    float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).x;
+    float heightR = texture2D(fieldTexture, vUv + vec2(texelSize, 0.0)).x;
+    float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).x;
+    float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).x;
 
-    // Calculate gradients (slope) - stronger for visible depth
+    // Calculate gradients (slope) - reduced for subtler lighting
     float dx = (heightR - heightL) * displacementScale;
     float dy = (heightU - heightD) * displacementScale;
 
-    // Normal vector (stronger bump mapping for 3D depth perception)
-    vec3 normal = normalize(vec3(-dx * 10.0, -dy * 10.0, 1.0));
+    // Normal vector (very subtle bump mapping for smooth appearance)
+    vec3 normal = normalize(vec3(-dx * 3.0, -dy * 3.0, 1.0));
 
-    // Light from above-right for dramatic shadows
-    vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+    // Light from directly above with slight angle
+    vec3 lightDir = normalize(vec3(0.2, 0.2, 1.0));
 
-    // Diffuse lighting (stronger contrast for visible terrain)
+    // Diffuse lighting
     float diffuse = max(dot(normal, lightDir), 0.0);
 
-    // Low ambient, high diffuse for dramatic shadows (30% ambient, 70% diffuse)
-    float lighting = 0.3 + 0.7 * diffuse;
+    // Much more ambient, minimal diffuse for natural, non-flickering look
+    float lighting = 0.75 + 0.25 * diffuse;
 
-    // Base terrain color (G channel = black to deep rich purple)
-    vec3 darkRock = vec3(0.0, 0.0, 0.05);    // Almost black with hint of purple
-    vec3 lightRock = vec3(0.45, 0.0, 0.7);   // Deep rich vivid purple
-    vec3 terrainColor = mix(darkRock, lightRock, matter);
+    // Apply lighting to color
+    vec3 baseColor = energyGradient(energy);
+    vec3 litColor = baseColor * lighting;
 
-    // Apply lighting to terrain (creates shadows and highlights)
-    vec3 litTerrain = terrainColor * lighting;
-
-    // Energy glow (R channel = electric neon overlay)
-    vec3 energyGlow = energyGradient(energy);
-
-    // Additive blending: dark terrain + bright energy glow
-    // Energy acts as "lightning flowing over mountains"
-    vec3 finalColor = litTerrain + energyGlow * energy * 0.8;
-
-    gl_FragColor = vec4(finalColor, 1.0);
+    gl_FragColor = vec4(litColor, 1.0);
 }
 `;
 }
