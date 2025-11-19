@@ -144,10 +144,21 @@ void main() {
  */
 export function getDisplayVertexShader() {
   return `
+uniform sampler2D fieldTexture;
+uniform float displacementScale;
 varying vec2 vUv;
+
 void main() {
     vUv = uv;
-    gl_Position = vec4(position, 1.0);
+
+    // Sample energy value from texture
+    float energy = texture2D(fieldTexture, uv).r;
+
+    // Create displaced position (2.5D terrain effect)
+    vec3 displaced = position;
+    displaced.z = energy * displacementScale;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
 }
 `;
 }
