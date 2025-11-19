@@ -298,6 +298,7 @@ export class EnergyLifeSimulation {
     if (this.dom.toggleControls) {
       this.dom.toggleControls.addEventListener('click', () => {
         const isCollapsed = this.dom.controls.classList.toggle('collapsed');
+        this.dom.toggleControls.classList.toggle('collapsed', isCollapsed);
         this.dom.toggleControls.textContent = isCollapsed ? '→' : '←';
       });
     }
