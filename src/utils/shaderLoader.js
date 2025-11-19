@@ -158,9 +158,8 @@ void main() {
     float prevEnergy = texture2D(prevFieldTexture, uv).r;
 
     // Average of current and previous frame for temporal smoothing (reduces flickering)
-    float energy = (prevFieldTexture == fieldTexture || prevEnergy == 0.0)
-                   ? currentEnergy
-                   : (currentEnergy + prevEnergy) * 0.5;
+    // On first frame, prevEnergy will be 0.0, so we use currentEnergy only
+    float energy = (prevEnergy == 0.0) ? currentEnergy : (currentEnergy + prevEnergy) * 0.5;
 
     vHeight = energy;
 
