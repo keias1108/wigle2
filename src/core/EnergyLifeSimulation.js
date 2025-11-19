@@ -79,7 +79,12 @@ export class EnergyLifeSimulation {
     this.computeRenderer = null;
     this.computeVariables = {};
     this.material = null;
-    this.controls = null;
+
+    // Camera rotation state (FPS-style controls)
+    this.cameraRotation = { pitch: -0.5, yaw: 0 }; // Initial 45-degree view
+    this.isRotating = false;
+    this.lastMouseX = 0;
+    this.lastMouseY = 0;
 
     this.isPaused = false;
     this.speedMultiplier = 1;
@@ -162,13 +167,8 @@ export class EnergyLifeSimulation {
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
     }
 
-    // WASD camera movement (RTS-style controls)
+    // WASD camera movement (screen-relative controls)
     this.#handleCameraMovement();
-
-    // Update OrbitControls (required for damping)
-    if (this.controls) {
-      this.controls.update();
-    }
 
     this.renderer.render(this.scene, this.camera);
     this.#updateFps();
@@ -211,16 +211,13 @@ export class EnergyLifeSimulation {
     if (delta.length() > 0) {
       delta.normalize().multiplyScalar(moveSpeed);
 
-      // Move both camera and orbit target together
+      // Move camera
       this.camera.position.add(delta);
-      this.controls.target.add(delta);
 
       // Boundary clamping to keep camera near simulation area
       const boundary = 20;
       this.camera.position.x = Math.max(-boundary, Math.min(boundary, this.camera.position.x));
       this.camera.position.y = Math.max(-boundary, Math.min(boundary, this.camera.position.y));
-      this.controls.target.x = Math.max(-boundary, Math.min(boundary, this.controls.target.x));
-      this.controls.target.y = Math.max(-boundary, Math.min(boundary, this.controls.target.y));
     }
   }
 
@@ -252,11 +249,13 @@ export class EnergyLifeSimulation {
   #setupRenderer() {
     this.scene = new THREE.Scene();
 
-    // Quarter view (45-degree angle) for visible 2.5D terrain
+    // FPS-style camera (user controls rotation directly)
     const aspect = this.canvasWidth / this.canvasHeight;
     this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 100);
     this.camera.position.set(0, -2.0, 1.5);
-    this.camera.lookAt(0, 0, 0);
+
+    // Apply initial rotation (45-degree quarter view)
+    this.#updateCameraRotation();
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.dom.canvas,
@@ -264,13 +263,21 @@ export class EnergyLifeSimulation {
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
+  }
 
-    // Setup OrbitControls for free camera rotation
-    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.target.set(0, 0, 0);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
-    this.controls.update();
+  /**
+   * Updates camera rotation based on pitch/yaw values
+   * @private
+   */
+  #updateCameraRotation() {
+    // Create rotation quaternion from pitch (X-axis) and yaw (Z-axis)
+    const euler = new THREE.Euler(
+      this.cameraRotation.pitch,
+      0,
+      this.cameraRotation.yaw,
+      'XYZ'
+    );
+    this.camera.quaternion.setFromEuler(euler);
   }
 
   /**
@@ -569,25 +576,82 @@ export class EnergyLifeSimulation {
   }
 
   #setupInteraction() {
+    // Left-click: Energy interaction
     this.dom.canvas.addEventListener('mousedown', (event) => {
-      this.isMouseDown = true;
-      this.#updateMousePos(event);
+      if (event.button === 0) {
+        // Left button
+        this.isMouseDown = true;
+        this.#updateMousePos(event);
+      } else if (event.button === 2) {
+        // Right button: Camera rotation
+        event.preventDefault();
+        this.isRotating = true;
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
+      }
     });
 
     this.dom.canvas.addEventListener('mousemove', (event) => {
       if (this.isMouseDown) {
         this.#updateMousePos(event);
+      } else if (this.isRotating) {
+        // Camera rotation (FPS-style)
+        const deltaX = event.clientX - this.lastMouseX;
+        const deltaY = event.clientY - this.lastMouseY;
+
+        const sensitivity = 0.003;
+        this.cameraRotation.yaw += deltaX * sensitivity;
+        this.cameraRotation.pitch -= deltaY * sensitivity;
+
+        // Clamp pitch to prevent flipping
+        this.cameraRotation.pitch = Math.max(
+          -Math.PI / 2 + 0.1,
+          Math.min(Math.PI / 2 - 0.1, this.cameraRotation.pitch)
+        );
+
+        this.#updateCameraRotation();
+
+        this.lastMouseX = event.clientX;
+        this.lastMouseY = event.clientY;
       }
     });
 
     const endInteraction = () => {
-      this.isMouseDown = false;
-      clearTexture(this.interactionTexture);
-      this.#updateInteractionTexture();
+      if (this.isMouseDown) {
+        this.isMouseDown = false;
+        clearTexture(this.interactionTexture);
+        this.#updateInteractionTexture();
+      }
+      this.isRotating = false;
     };
 
     this.dom.canvas.addEventListener('mouseup', endInteraction);
     this.dom.canvas.addEventListener('mouseleave', endInteraction);
+
+    // Prevent context menu on right-click
+    this.dom.canvas.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+    });
+
+    // Mouse wheel: Zoom (move camera forward/backward)
+    this.dom.canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+
+      const zoomSpeed = 0.1;
+      const forward = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
+      forward.normalize();
+
+      if (event.deltaY < 0) {
+        // Zoom in
+        this.camera.position.add(forward.multiplyScalar(zoomSpeed));
+      } else {
+        // Zoom out
+        this.camera.position.sub(forward.multiplyScalar(zoomSpeed));
+      }
+
+      // Clamp Z position to prevent going through floor
+      this.camera.position.z = Math.max(0.5, this.camera.position.z);
+    }, { passive: false });
   }
 
   #setupKeyboard() {
