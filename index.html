@@ -84,24 +84,29 @@
       }
 
       #controls.collapsed {
-        transform: translateX(-320px);
+        transform: translateX(-360px);
       }
 
       .toggle-button {
-        position: absolute;
-        right: -30px;
+        position: fixed;
+        left: 370px;
         top: 10px;
         width: 30px;
         height: 40px;
         background: rgba(0, 0, 0, 0.9);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-left: none;
         border-radius: 0 5px 5px 0;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         color: #00ffcc;
+        transition: left 0.3s ease;
+        z-index: 1001;
+      }
+
+      #controls.collapsed .toggle-button {
+        left: 10px;
       }
 
       .controls-header {
@@ -308,7 +313,15 @@
         }
 
         #controls.collapsed {
-          transform: translateX(-250px);
+          transform: translateX(-280px);
+        }
+
+        .toggle-button {
+          left: 290px;
+        }
+
+        #controls.collapsed .toggle-button {
+          left: 10px;
         }
 
         #chart {
@@ -327,7 +340,7 @@
     </div>
 
     <div id="controls">
-      <div class="toggle-button" id="toggleControls">☰</div>
+      <div class="toggle-button" id="toggleControls">←</div>
 
       <div class="controls-header">
         <h2>⚡ Energy Life</h2>
