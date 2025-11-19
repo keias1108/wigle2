@@ -99,6 +99,7 @@ export class EnergyLifeSimulation {
     this.downsampleCamera = null;
     this.downsampleMesh = null;
     this.averageBuffer = null;
+    this.prevFieldTexture = null; // Previous frame texture for temporal smoothing
     this.chartCtx = null;
 
     this.canvasWidth = INITIAL_CANVAS_WIDTH;
@@ -154,7 +155,12 @@ export class EnergyLifeSimulation {
         this.computeFrameCounter = 0;
       }
 
+      // Store previous frame for temporal smoothing
+      this.prevFieldTexture = this.material.uniforms.fieldTexture.value;
+
+      // Update current and previous frame uniforms
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
+      this.material.uniforms.prevFieldTexture.value = this.prevFieldTexture;
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -201,6 +207,36 @@ export class EnergyLifeSimulation {
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
+
+    // Fit camera to fill screen with 3D plane
+    this.#fitCameraToScreen();
+  }
+
+  /**
+   * Adjusts camera distance to fit 3D plane to screen
+   * Ensures the 2x2 plane fills the viewport without black borders
+   * @private
+   */
+  #fitCameraToScreen() {
+    const aspect = this.canvasWidth / this.canvasHeight;
+    const fovRad = (CAMERA_FOV * Math.PI) / 180;
+
+    // Plane dimensions (from PlaneGeometry)
+    const planeHeight = 2;
+    const planeWidth = 2;
+
+    // Calculate distance needed to fit plane vertically
+    const distanceForHeight = planeHeight / (2 * Math.tan(fovRad / 2));
+
+    // Calculate distance needed to fit plane horizontally
+    const distanceForWidth = planeWidth / (2 * Math.tan(fovRad / 2) * aspect);
+
+    // Use the larger distance to ensure plane fits without clipping
+    // Multiply by 0.95 to slightly overfill (no black borders)
+    const distance = Math.max(distanceForHeight, distanceForWidth) * 0.95;
+
+    this.camera.position.z = distance;
+    this.camera.updateProjectionMatrix();
   }
 
   /**
@@ -302,6 +338,7 @@ export class EnergyLifeSimulation {
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         fieldTexture: { value: null },
+        prevFieldTexture: { value: null }, // Previous frame for temporal smoothing
         displacementScale: { value: DISPLACEMENT_SCALE },
         texelSize: { value: 1.0 / this.simulationSize },
       },
@@ -617,6 +654,11 @@ export class EnergyLifeSimulation {
       this.dom.container.style.width = `${this.canvasWidth}px`;
       this.dom.container.style.height = `${this.canvasHeight}px`;
       this.renderer.setSize(this.canvasWidth, this.canvasHeight);
+
+      // Update camera aspect ratio and refit to screen
+      this.camera.aspect = this.canvasWidth / this.canvasHeight;
+      this.camera.updateProjectionMatrix();
+      this.#fitCameraToScreen();
     });
 
     document.addEventListener('mouseup', () => {
