@@ -1,47 +1,48 @@
 /**
- * Default Simulation Parameters
+ * Transformer-Life Simulation - Default Parameters
  *
- * These values define the initial state of the simulation.
- * Each parameter is carefully tuned to produce interesting emergent patterns.
+ * Architecture based on Transformer neural networks:
+ * - Phase 1: Attention Mechanism (information conflict)
+ * - Phase 2: Non-linear Activation (threshold firing)
+ * - Phase 3: Residual Stream (structure accumulation)
  */
 
 /**
- * Default parameter values for the energy lifecycle simulation
+ * Default parameter values for Transformer-Life simulation
  *
  * @typedef {Object} SimulationParams
- * @property {number} innerRadius - Inner attraction zone radius (grid cells)
- * @property {number} innerStrength - Inner attraction strength (positive = attract)
- * @property {number} outerRadius - Outer repulsion zone radius (grid cells)
- * @property {number} outerStrength - Outer repulsion strength (negative = repel)
- * @property {number} growthCenter - Center of growth function bell curve
- * @property {number} growthWidth - Width of growth function bell curve
- * @property {number} growthRate - Growth speed multiplier
- * @property {number} suppressionFactor - Global population suppression factor
- * @property {number} decayRate - Energy metabolism rate (quadratic decay)
- * @property {number} diffusionRate - Energy diffusion rate (Laplacian)
- * @property {number} fissionThreshold - Energy level triggering instability
- * @property {number} instabilityFactor - Fission chaos strength
+ * @property {number} neighborhoodRadius - Sampling radius for attention mechanism
+ * @property {number} varianceWeight - Weight for local variance in conflict calculation
+ * @property {number} activationThreshold - Critical threshold for sigmoid firing
+ * @property {number} activationSteepness - Sigmoid steepness (sharper = more binary)
+ * @property {number} energyLearningRate - Rate of energy change from activation
+ * @property {number} matterGrowthRate - Rate of matter accumulation (residual stream)
+ * @property {number} matterDecayRate - Slow decay of accumulated matter
+ * @property {number} matterResistance - How much matter suppresses new activation
+ * @property {number} diffusionRate - Energy diffusion rate (optional spreading)
+ * @property {number} globalAverage - System-wide average (for normalization)
  */
 export const DEFAULT_PARAMS = {
-  // Dynamic Tension: controls neighbor interactions
-  innerRadius: 3.5,
-  innerStrength: 0.9,
-  outerRadius: 7.5,
-  outerStrength: -0.4,
+  // ===== PHASE 1: ATTENTION MECHANISM =====
+  // Controls how cells measure "information conflict" with neighbors
+  neighborhoodRadius: 5.0,    // Sampling radius (grid cells)
+  varianceWeight: 1.0,        // Weight for local variance in attention score
 
-  // Growth Function: controls energy gain/loss based on neighbors
-  growthCenter: -0.17,
-  growthWidth: 0.0183,
-  growthRate: 0.607,
+  // ===== PHASE 2: ACTIVATION FUNCTION =====
+  // Controls the non-linear "firing" threshold
+  activationThreshold: 0.25,  // Critical threshold (0.0-1.0)
+  activationSteepness: 12.0,  // Sigmoid steepness (higher = sharper firing)
 
-  // Global suppression (prevents overpopulation)
-  suppressionFactor: 1.0,
+  // ===== PHASE 3: RESIDUAL STREAM =====
+  // Controls energy and matter dynamics
+  energyLearningRate: 0.15,   // Rate of energy change from activation
+  matterGrowthRate: 0.08,     // Rate of matter accumulation (structure)
+  matterDecayRate: 0.002,     // Slow decay of matter
+  matterResistance: 0.4,      // How much matter suppresses activation (feedback)
 
-  // Energy Economy: controls energy lifecycle
-  decayRate: 0.378,
-  diffusionRate: 0.333,
-  fissionThreshold: 0.796,
-  instabilityFactor: 1.5,
+  // ===== GLOBAL DYNAMICS =====
+  diffusionRate: 0.1,         // Energy diffusion (spreading)
+  globalAverage: 0.0,         // System-wide average (for future normalization)
 };
 
 /**
@@ -49,16 +50,15 @@ export const DEFAULT_PARAMS = {
  * Used for automatic slider/input binding
  */
 export const PARAM_CONTROL_IDS = [
-  'innerRadius',
-  'innerStrength',
-  'outerRadius',
-  'outerStrength',
-  'growthCenter',
-  'growthWidth',
-  'growthRate',
-  'decayRate',
+  'neighborhoodRadius',
+  'varianceWeight',
+  'activationThreshold',
+  'activationSteepness',
+  'energyLearningRate',
+  'matterGrowthRate',
+  'matterDecayRate',
+  'matterResistance',
   'diffusionRate',
-  'fissionThreshold',
 ];
 
 /**

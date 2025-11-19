@@ -1,93 +1,45 @@
 /**
- * Energy Life Simulation - Lifecycle Shader
+ * Transformer-Life Simulation - Lifecycle Shader
  *
- * This shader implements the core energy lifecycle mechanics:
- * - Neighbor influence kernel (inner attraction, outer repulsion)
- * - Growth function (bell curve based on potential)
- * - Energy metabolism (quadratic decay)
- * - Diffusion (Laplacian)
- * - Fission instability (high energy chaos)
- * - User interaction (energy injection, attraction, repulsion)
+ * Architecture inspired by Transformer neural networks:
+ * - Phase 1 (Convergence): Attention Mechanism - measuring information conflict
+ * - Phase 2 (Emission): MLP + Non-linear Activation - critical threshold firing
+ * - Phase 3 (Residual Stream): State accumulation and feedback loop
+ *
+ * Channels:
+ * - R: Energy (fast-changing, attention-driven)
+ * - G: Matter (slow-accumulating, residual stream)
+ * - B: Reserved for future use
  */
 
-// Uniforms from GPU computation
+// Core texture and parameters
 uniform sampler2D field;
-uniform float innerRadius;
-uniform float innerStrength;
-uniform float outerRadius;
-uniform float outerStrength;
-uniform float growthCenter;
-uniform float growthWidth;
-uniform float growthRate;
-uniform float suppressionFactor;
-uniform float globalAverage;
-uniform float decayRate;
-uniform float diffusionRate;
-uniform float fissionThreshold;
-uniform float instabilityFactor;
-uniform sampler2D interactionTexture;
 uniform vec2 texelSize;
 
-/**
- * Computes the influence weight based on distance from a cell.
- *
- * Inner zone: Quadratic falloff attraction (promotes clustering)
- * Outer zone: Gaussian repulsion (prevents overcrowding)
- *
- * @param dist Distance to neighbor in grid units
- * @return Weight value (positive = attraction, negative = repulsion)
- */
-float kernelWeight(float dist) {
-    float weight = 0.0;
+// Phase 1: Attention Mechanism
+uniform float neighborhoodRadius;    // Sampling radius for neighbors
+uniform float varianceWeight;        // Weight for local variance in conflict calculation
 
-    // Inner attraction zone: quadratic falloff
-    if (dist < innerRadius) {
-        float t = 1.0 - (dist / innerRadius);
-        weight += innerStrength * t * t;
-    }
+// Phase 2: Activation Function
+uniform float activationThreshold;   // Critical threshold for firing (0.0-1.0)
+uniform float activationSteepness;   // Sigmoid steepness (higher = sharper transition)
 
-    // Outer repulsion zone: Gaussian envelope
-    float ringStart = innerRadius + 1.0;
-    float ringEnd = outerRadius;
-    if (dist > ringStart && dist < ringEnd) {
-        float t = (dist - ringStart) / (ringEnd - ringStart);
-        weight += outerStrength * exp(-2.0 * t * t);
-    }
+// Phase 3: Residual Stream
+uniform float energyLearningRate;    // Rate of energy change from activation
+uniform float matterGrowthRate;      // Rate of matter accumulation from activation
+uniform float matterDecayRate;       // Slow decay of accumulated matter
+uniform float matterResistance;      // How much matter suppresses new activation
 
-    return weight;
-}
+// Global dynamics
+uniform float diffusionRate;         // Optional: energy diffusion to neighbors
+uniform float globalAverage;         // System-wide average energy (for normalization)
+
+// User interaction
+uniform sampler2D interactionTexture;
 
 /**
- * Growth function determining energy change based on neighbor potential.
- *
- * Uses a Gaussian bell curve centered at growthCenter with width growthWidth.
- * High-energy cells (above fissionThreshold) experience instability.
- *
- * @param potential Weighted average of neighbor energies
- * @param currentEnergy Current cell energy level
- * @return Growth factor (centered around 0)
- */
-float growthFunction(float potential, float currentEnergy) {
-    float x = (potential - growthCenter) / growthWidth;
-    float bellCurve = exp(-x * x * 0.5);
-
-    // Fission instability: reduce growth when energy is too high
-    if (currentEnergy > fissionThreshold) {
-        float excess = (currentEnergy - fissionThreshold) / (1.0 - fissionThreshold);
-        bellCurve -= excess * instabilityFactor;
-    }
-
-    return bellCurve;
-}
-
-/**
- * Computes the discrete Laplacian for diffusion.
- *
- * Uses 4-neighbor stencil (von Neumann neighborhood):
- * Δu = u(x+1) + u(x-1) + u(y+1) + u(y-1) - 4*u(x,y)
- *
- * @param uv Texture coordinates
- * @return Laplacian value
+ * Computes discrete Laplacian for diffusion (optional).
+ * Uses 4-neighbor von Neumann stencil.
  */
 float laplacian(vec2 uv) {
     float sum = 0.0;
@@ -100,85 +52,155 @@ float laplacian(vec2 uv) {
 }
 
 /**
- * Pseudo-random number generator for noise.
+ * Sigmoid activation function.
+ * Maps input to smooth transition from 0 to 1.
  *
- * @param co Seed coordinate
- * @return Random value in [0, 1]
+ * @param x Input value
+ * @param threshold Center point of transition
+ * @param steepness How sharp the transition is
+ * @return Activated value [0, 1]
  */
-float random(vec2 co) {
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+float sigmoid(float x, float threshold, float steepness) {
+    return 1.0 / (1.0 + exp(-steepness * (x - threshold)));
 }
 
 void main() {
     vec2 uv = gl_FragCoord.xy * texelSize;
 
-    float currentEnergy = texture2D(field, uv).x;
+    // Current state
+    vec4 currentState = texture2D(field, uv);
+    float currentEnergy = currentState.x;  // R channel
+    float currentMatter = currentState.y;  // G channel (Residual Stream)
+
+    // User interaction (energy injection)
     vec3 interaction = texture2D(interactionTexture, uv).rgb;
+    float injectedEnergy = interaction.r * 0.1;
 
-    // ========== STEP 1: Compute neighborhood potential ==========
-    float potential = 0.0;
-    float totalWeight = 0.0;
+    // ========================================================================
+    // PHASE 1: CONVERGENCE (Attention Mechanism - The Conflict)
+    // ========================================================================
+    // "에너지·정보가 많은 곳에서는 항상 두 힘의 대립이 생긴다"
+    //
+    // We don't just sum neighbor energies. We measure INFORMATION IMBALANCE.
+    // This is the "conflict" between center and neighbors.
 
-    // Kernel loop: sample neighbors within outerRadius
-    // Note: kernelSize should match outerRadius ceiling
-    int kernelSize = 10;
-    for (int dy = -kernelSize; dy <= kernelSize; dy++) {
-        for (int dx = -kernelSize; dx <= kernelSize; dx++) {
+    float neighborSum = 0.0;
+    float neighborCount = 0.0;
+    int radius = int(ceil(neighborhoodRadius));
+
+    // Sample neighbors within radius
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            if (dx == 0 && dy == 0) continue; // Skip center
+
             vec2 offset = vec2(float(dx), float(dy));
             float dist = length(offset);
 
-            if (dist <= outerRadius) {
+            if (dist <= neighborhoodRadius) {
                 vec2 neighborUV = fract(uv + offset * texelSize);
                 float neighborEnergy = texture2D(field, neighborUV).x;
-                float weight = kernelWeight(dist);
 
-                // Apply interaction modifiers
-                // Green channel = attract, Blue channel = repel
-                weight += interaction.g * 2.0 - interaction.b * 2.0;
-
-                potential += neighborEnergy * weight;
-                totalWeight += abs(weight);
+                neighborSum += neighborEnergy;
+                neighborCount += 1.0;
             }
         }
     }
 
-    // Normalize potential
-    if (totalWeight > 0.0) {
-        potential /= totalWeight;
+    // Compute neighbor average
+    float neighborAvg = (neighborCount > 0.0) ? (neighborSum / neighborCount) : currentEnergy;
+
+    // LOCAL VARIANCE: Measure information imbalance in neighborhood
+    float localVariance = 0.0;
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            if (dx == 0 && dy == 0) continue;
+
+            vec2 offset = vec2(float(dx), float(dy));
+            float dist = length(offset);
+
+            if (dist <= neighborhoodRadius) {
+                vec2 neighborUV = fract(uv + offset * texelSize);
+                float neighborEnergy = texture2D(field, neighborUV).x;
+
+                float diff = neighborEnergy - neighborAvg;
+                localVariance += diff * diff;
+            }
+        }
     }
+    localVariance = (neighborCount > 0.0) ? sqrt(localVariance / neighborCount) : 0.0;
 
-    // ========== STEP 2: Compute growth ==========
-    float growth = growthFunction(potential, currentEnergy) - 0.5;
-    growth -= globalAverage * suppressionFactor;
+    // CENTER CONFLICT: How different is this cell from its neighborhood?
+    float centerConflict = abs(currentEnergy - neighborAvg);
 
-    // ========== STEP 3: Compute metabolism (energy cost) ==========
-    float metabolism = currentEnergy * currentEnergy * decayRate;
+    // ATTENTION SCORE: Combined measure of local conflict
+    // This is the "두 힘의 대립" (conflict between two forces)
+    float attentionScore = centerConflict + localVariance * varianceWeight;
 
-    // ========== STEP 4: Compute diffusion ==========
+    // ========================================================================
+    // PHASE 2: EMISSION (MLP & Non-linear Activation - The Criticality)
+    // ========================================================================
+    // "비선형 피드백이 생기고... 임계점을 넘으면"
+    //
+    // Not linear mixing. THRESHOLD FIRING.
+    // Below threshold → 0. Above threshold → explosive activation.
+
+    // Apply matter resistance: high structure suppresses new activation
+    // This creates the feedback loop from Phase 3
+    float effectiveThreshold = activationThreshold + currentMatter * matterResistance;
+
+    // FIRING: Sigmoid activation
+    float activation = sigmoid(attentionScore, effectiveThreshold, activationSteepness);
+
+    // ========================================================================
+    // PHASE 3: NEW DIMENSION (Residual Stream - The Structure)
+    // ========================================================================
+    // "기존 좌표계로는 설명 안 되는 새로운 유효 차원이 생긴다"
+    //
+    // G channel is NOT just a visual effect. It's the RESIDUAL STREAM.
+    // It stores the accumulated state of the system.
+
+    // UPDATE ENERGY (R channel): Fast-changing, driven by activation
+    float energyDelta = activation * energyLearningRate;
+
+    // Add diffusion (optional spreading)
     float diffusion = laplacian(uv) * diffusionRate;
 
-    // ========== STEP 5: Fission noise (chaos at high energy) ==========
-    float fissionNoise = 0.0;
-    if (currentEnergy > fissionThreshold) {
-        float excess = (currentEnergy - fissionThreshold) / (1.0 - fissionThreshold);
-        float chaos = sin(dot(uv * 100.0 + currentEnergy * 50.0, vec2(12.9898, 78.233)));
-        fissionNoise = chaos * excess * 0.1;
-    }
+    // Add user interaction
+    energyDelta += injectedEnergy;
 
-    // ========== STEP 6: User interaction (energy injection) ==========
-    // Red channel = direct energy injection
-    float interactionEnergy = interaction.r * 0.1;
+    // Apply energy update
+    float newEnergy = currentEnergy + energyDelta + diffusion;
 
-    // ========== STEP 7: Update energy ==========
-    float deltaEnergy = growthRate * growth - metabolism + diffusion + fissionNoise + interactionEnergy;
-    float newEnergy = currentEnergy + deltaEnergy;
+    // UPDATE MATTER (G channel): Slow-accumulating residual stream
+    // Only ACTIVATION creates structure. Not energy directly.
+    float matterDelta = activation * matterGrowthRate;
+
+    // Slow decay of matter
+    float matterDecay = currentMatter * matterDecayRate;
+
+    // Apply matter update
+    float newMatter = currentMatter + matterDelta - matterDecay;
+
+    // NORMALIZATION (Layer Norm concept)
+    // Prevent unbounded growth
+    newEnergy = clamp(newEnergy, 0.0, 1.0);
+    newMatter = clamp(newMatter, 0.0, 1.0);
 
     // Add tiny noise to prevent stagnation
-    float noise = (random(uv + currentEnergy) - 0.5) * 0.001;
-    newEnergy += noise;
+    float noise = fract(sin(dot(uv * 1000.0 + currentEnergy, vec2(12.9898, 78.233))) * 43758.5453);
+    newEnergy += (noise - 0.5) * 0.0001;
 
-    // Clamp to valid range
-    newEnergy = clamp(newEnergy, 0.0, 1.0);
+    // ========================================================================
+    // OUTPUT
+    // ========================================================================
+    // R: Energy (순간적인 attention 결과, fast-changing)
+    // G: Matter (시간이 응축된 구조, slow-accumulating)
+    // B: Debug channel (attentionScore for visualization)
 
-    gl_FragColor = vec4(newEnergy, 0.0, 0.0, 1.0);
+    gl_FragColor = vec4(
+        clamp(newEnergy, 0.0, 1.0),
+        clamp(newMatter, 0.0, 1.0),
+        clamp(attentionScore, 0.0, 1.0), // Debug: attention visualization
+        1.0
+    );
 }

@@ -40,14 +40,14 @@ import { GPUComputationRenderer } from './GPUComputationRenderer.js';
 const THREE = window.THREE;
 
 /**
- * Energy Life Simulation
+ * Transformer-Life Simulation
  *
- * GPU-accelerated cellular automaton simulating energy dynamics.
- * Implements a particle life system with:
- * - Neighbor-based attraction/repulsion kernels
- * - Growth function based on local energy potential
- * - Energy metabolism and diffusion
- * - User interaction (inject energy, attract, repel)
+ * GPU-accelerated cellular automaton inspired by Transformer architecture.
+ * Implements attention-based energy dynamics with:
+ * - Phase 1: Attention Mechanism (information conflict detection)
+ * - Phase 2: Non-linear Activation (threshold firing)
+ * - Phase 3: Residual Stream (structure accumulation)
+ * - User interaction (energy injection)
  *
  * @class
  */
@@ -301,20 +301,27 @@ export class EnergyLifeSimulation {
       initialTexture,
     );
 
+    // Transformer-Life uniforms
     fieldVariable.material.uniforms = {
-      innerRadius: { value: this.params.innerRadius },
-      innerStrength: { value: this.params.innerStrength },
-      outerRadius: { value: this.params.outerRadius },
-      outerStrength: { value: this.params.outerStrength },
-      growthCenter: { value: this.params.growthCenter },
-      growthWidth: { value: this.params.growthWidth },
-      growthRate: { value: this.params.growthRate },
-      suppressionFactor: { value: this.params.suppressionFactor },
-      globalAverage: { value: 0.0 },
-      decayRate: { value: this.params.decayRate },
+      // Phase 1: Attention Mechanism
+      neighborhoodRadius: { value: this.params.neighborhoodRadius },
+      varianceWeight: { value: this.params.varianceWeight },
+
+      // Phase 2: Activation Function
+      activationThreshold: { value: this.params.activationThreshold },
+      activationSteepness: { value: this.params.activationSteepness },
+
+      // Phase 3: Residual Stream
+      energyLearningRate: { value: this.params.energyLearningRate },
+      matterGrowthRate: { value: this.params.matterGrowthRate },
+      matterDecayRate: { value: this.params.matterDecayRate },
+      matterResistance: { value: this.params.matterResistance },
+
+      // Global dynamics
       diffusionRate: { value: this.params.diffusionRate },
-      fissionThreshold: { value: this.params.fissionThreshold },
-      instabilityFactor: { value: this.params.instabilityFactor },
+      globalAverage: { value: 0.0 },
+
+      // Interaction and texel size
       interactionTexture: { value: this.interactionTexture },
       texelSize: {
         value: new THREE.Vector2(1.0 / this.simulationSize, 1.0 / this.simulationSize),
