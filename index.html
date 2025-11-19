@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Advanced Energy Life Simulation</title>
+    <title>Transformer-Life Simulation</title>
     <style>
       * {
         margin: 0;
@@ -343,7 +343,7 @@
 
     <div id="controls">
       <div class="controls-header">
-        <h2>⚡ Energy Life</h2>
+        <h2>🧠 Transformer-Life</h2>
         <div class="preset-buttons">
           <button class="preset-btn" id="savePreset">Save</button>
           <button class="preset-btn" id="loadPreset">Load</button>
@@ -367,91 +367,47 @@
       </div>
 
       <div class="control-group">
-        <h3>Dynamic Tension</h3>
+        <h3>Phase 1: Attention Mechanism</h3>
 
         <div class="control-item">
-          <label for="innerRadius">Inner Radius</label>
+          <label for="neighborhoodRadius">Neighborhood Radius</label>
           <div class="slider-container">
             <input
               type="range"
-              id="innerRadius"
+              id="neighborhoodRadius"
               min="1"
-              max="10"
-              value="3.5"
-              step="0.01"
+              max="15"
+              value="5.0"
+              step="0.1"
             />
             <input
               type="number"
-              id="innerRadiusValue"
+              id="neighborhoodRadiusValue"
               min="1"
-              max="10"
-              value="3.5"
-              step="0.01"
-            />
-          </div>
-        </div>
-
-        <div class="control-item">
-          <label for="innerStrength">Inner Strength</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="innerStrength"
-              min="0"
-              max="2"
-              value="0.9"
-              step="0.01"
-            />
-            <input
-              type="number"
-              id="innerStrengthValue"
-              min="0"
-              max="2"
-              value="0.9"
-              step="0.01"
-            />
-          </div>
-        </div>
-
-        <div class="control-item">
-          <label for="outerRadius">Outer Radius</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="outerRadius"
-              min="5"
               max="15"
-              value="7.5"
-              step="0.01"
-            />
-            <input
-              type="number"
-              id="outerRadiusValue"
-              min="5"
-              max="15"
-              value="7.5"
-              step="0.01"
+              value="5.0"
+              step="0.1"
             />
           </div>
         </div>
 
         <div class="control-item">
-          <label for="outerStrength">Outer Strength</label>
+          <label for="varianceWeight">Variance Weight</label>
           <div class="slider-container">
             <input
               type="range"
-              id="outerStrength"
-              min="-2"
-              max="0"
-              value="-0.4"
+              id="varianceWeight"
+              min="0"
+              max="3"
+              value="1.0"
               step="0.01"
             />
             <input
               type="number"
-              id="outerStrengthValue"
-              min="-2"
-              max="0"
-              value="-0.4"
+              id="varianceWeightValue"
+              min="0"
+              max="3"
+              value="1.0"
               step="0.01"
             />
           </div>
@@ -459,29 +415,147 @@
       </div>
 
       <div class="control-group">
-        <h3>Energy Economy</h3>
+        <h3>Phase 2: Activation Function</h3>
 
         <div class="control-item">
-          <label for="decayRate">Decay Rate</label>
+          <label for="activationThreshold">Threshold</label>
           <div class="slider-container">
             <input
               type="range"
-              id="decayRate"
+              id="activationThreshold"
               min="0"
               max="1"
-              value="0.378"
+              value="0.25"
+              step="0.01"
+            />
+            <input
+              type="number"
+              id="activationThresholdValue"
+              min="0"
+              max="1"
+              value="0.25"
+              step="0.01"
+            />
+          </div>
+        </div>
+
+        <div class="control-item">
+          <label for="activationSteepness">Steepness</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="activationSteepness"
+              min="1"
+              max="30"
+              value="12.0"
+              step="0.1"
+            />
+            <input
+              type="number"
+              id="activationSteepnessValue"
+              min="1"
+              max="30"
+              value="12.0"
+              step="0.1"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Phase 3: Residual Stream</h3>
+
+        <div class="control-item">
+          <label for="energyLearningRate">Energy Learning Rate</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="energyLearningRate"
+              min="0"
+              max="0.5"
+              value="0.15"
+              step="0.001"
+            />
+            <input
+              type="number"
+              id="energyLearningRateValue"
+              min="0"
+              max="0.5"
+              value="0.15"
+              step="0.001"
+            />
+          </div>
+        </div>
+
+        <div class="control-item">
+          <label for="matterGrowthRate">Matter Growth Rate</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="matterGrowthRate"
+              min="0"
+              max="0.2"
+              value="0.08"
+              step="0.001"
+            />
+            <input
+              type="number"
+              id="matterGrowthRateValue"
+              min="0"
+              max="0.2"
+              value="0.08"
+              step="0.001"
+            />
+          </div>
+        </div>
+
+        <div class="control-item">
+          <label for="matterDecayRate">Matter Decay Rate</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="matterDecayRate"
+              min="0"
+              max="0.01"
+              value="0.002"
               step="0.0001"
             />
             <input
               type="number"
-              id="decayRateValue"
+              id="matterDecayRateValue"
               min="0"
-              max="1"
-              value="0.378"
+              max="0.01"
+              value="0.002"
               step="0.0001"
             />
           </div>
         </div>
+
+        <div class="control-item">
+          <label for="matterResistance">Matter Resistance</label>
+          <div class="slider-container">
+            <input
+              type="range"
+              id="matterResistance"
+              min="0"
+              max="1"
+              value="0.4"
+              step="0.01"
+            />
+            <input
+              type="number"
+              id="matterResistanceValue"
+              min="0"
+              max="1"
+              value="0.4"
+              step="0.01"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Global Dynamics</h3>
 
         <div class="control-item">
           <label for="diffusionRate">Diffusion Rate</label>
@@ -490,108 +564,16 @@
               type="range"
               id="diffusionRate"
               min="0"
-              max="1"
-              value="0.333"
-              step="0.0001"
+              max="0.5"
+              value="0.1"
+              step="0.001"
             />
             <input
               type="number"
               id="diffusionRateValue"
               min="0"
-              max="1"
-              value="0.333"
-              step="0.0001"
-            />
-          </div>
-        </div>
-
-        <div class="control-item">
-          <label for="fissionThreshold">Fission Threshold</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="fissionThreshold"
-              min="0.5"
-              max="0.95"
-              value="0.796"
-              step="0.01"
-            />
-            <input
-              type="number"
-              id="fissionThresholdValue"
-              min="0.5"
-              max="0.95"
-              value="0.796"
-              step="0.01"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div class="control-group">
-        <h3>Growth Function</h3>
-
-        <div class="control-item">
-          <label for="growthCenter">Growth Center</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="growthCenter"
-              min="-2"
-              max="2"
-              value="-0.170"
-              step="0.0001"
-            />
-            <input
-              type="number"
-              id="growthCenterValue"
-              min="-2"
-              max="2"
-              value="-0.170"
-              step="0.0001"
-            />
-          </div>
-        </div>
-
-        <div class="control-item">
-          <label for="growthWidth">Growth Width</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="growthWidth"
-              min="0.0001"
-              max="1"
-              value="0.0183"
-              step="0.0001"
-            />
-            <input
-              type="number"
-              id="growthWidthValue"
-              min="0.0001"
-              max="1"
-              value="0.0183"
-              step="0.0001"
-            />
-          </div>
-        </div>
-
-        <div class="control-item">
-          <label for="growthRate">Growth Rate</label>
-          <div class="slider-container">
-            <input
-              type="range"
-              id="growthRate"
-              min="0.001"
-              max="1"
-              value="0.607"
-              step="0.001"
-            />
-            <input
-              type="number"
-              id="growthRateValue"
-              min="0.001"
-              max="1"
-              value="0.607"
+              max="0.5"
+              value="0.1"
               step="0.001"
             />
           </div>
