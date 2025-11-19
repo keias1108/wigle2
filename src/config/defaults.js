@@ -29,9 +29,9 @@ export const DEFAULT_PARAMS = {
   varianceWeight: 1.0,        // Weight for local variance in attention score
 
   // ===== PHASE 2: ACTIVATION FUNCTION =====
-  // Controls the non-linear "firing" threshold
-  activationThreshold: 0.25,  // Critical threshold (0.0-1.0)
-  activationSteepness: 12.0,  // Sigmoid steepness (higher = sharper firing)
+  // Controls the Leaky ReLU "firing" threshold
+  activationThreshold: 0.15,  // Critical threshold (lower = easier to activate)
+  activationSteepness: 2.0,   // Linear amplification (was 12.0 with Sigmoid)
 
   // ===== PHASE 3: RESIDUAL STREAM =====
   // Controls energy and matter dynamics
