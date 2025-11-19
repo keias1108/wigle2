@@ -6,6 +6,8 @@ import {
   INTERACTION_MODES,
   INTERACTION_RADIUS,
   CHART_HISTORY_LENGTH,
+  CHART_UPDATE_THROTTLE,
+  CHART_DOWNSAMPLE_FACTOR,
   CHART_CANVAS_WIDTH,
   CHART_CANVAS_HEIGHT,
   CHART_GRID_DIVISIONS,
@@ -85,6 +87,8 @@ export class EnergyLifeSimulation {
     this.mousePos = { x: 0, y: 0 };
 
     this.chartHistory = [];
+    this.chartEnabled = true; // Chart toggle state
+    this.chartUpdateCounter = 0; // For throttling chart updates
     this.downsamplePasses = [];
     this.downsampleScene = null;
     this.downsampleCamera = null;
@@ -157,6 +161,8 @@ export class EnergyLifeSimulation {
     this.dom.container = document.querySelector(this.containerSelector);
     this.dom.controls = document.querySelector(this.controlsSelector);
     this.dom.chartCanvas = document.querySelector(this.chartCanvasSelector);
+    this.dom.toggleChart = document.getElementById('toggleChart');
+    this.dom.chart = document.getElementById('chart');
     this.dom.toggleControls = document.getElementById('toggleControls');
     this.dom.savePreset = document.getElementById('savePreset');
     this.dom.loadPreset = document.getElementById('loadPreset');
@@ -408,6 +414,15 @@ export class EnergyLifeSimulation {
     this.chartCtx = this.dom.chartCanvas.getContext('2d');
     this.dom.chartCanvas.width = CHART_CANVAS_WIDTH;
     this.dom.chartCanvas.height = CHART_CANVAS_HEIGHT;
+
+    // Setup chart toggle button
+    if (this.dom.toggleChart) {
+      this.dom.toggleChart.addEventListener('click', () => {
+        this.chartEnabled = !this.chartEnabled;
+        this.dom.toggleChart.classList.toggle('active', this.chartEnabled);
+        this.dom.chart.style.display = this.chartEnabled ? 'block' : 'none';
+      });
+    }
   }
 
   #updateChart(avgEnergy) {
@@ -425,7 +440,9 @@ export class EnergyLifeSimulation {
     this.chartCtx.lineWidth = 2;
     this.chartCtx.beginPath();
 
-    for (let i = 0; i < this.chartHistory.length; i++) {
+    // Downsample for performance: draw every Nth point
+    const step = CHART_DOWNSAMPLE_FACTOR;
+    for (let i = 0; i < this.chartHistory.length; i += step) {
       const x = (i / CHART_HISTORY_LENGTH) * width;
       const y = height - this.chartHistory[i] * height;
       if (i === 0) {
@@ -661,7 +678,15 @@ export class EnergyLifeSimulation {
     if (this.dom.avgLabel) {
       this.dom.avgLabel.textContent = `Avg: ${average.toFixed(3)}`;
     }
-    this.#updateChart(average);
+
+    // Only update chart if enabled and throttle counter reached
+    if (this.chartEnabled) {
+      this.chartUpdateCounter++;
+      if (this.chartUpdateCounter >= CHART_UPDATE_THROTTLE) {
+        this.#updateChart(average);
+        this.chartUpdateCounter = 0;
+      }
+    }
   }
 
   #updateFps() {

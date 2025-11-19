@@ -78,14 +78,31 @@ export const FISSION_NOISE_AMPLITUDE = 0.1;
 export const STAGNATION_NOISE_AMPLITUDE = 0.001;
 
 // ========== Chart ==========
-/** Number of data points in energy history chart */
-export const CHART_HISTORY_LENGTH = 100;
+/**
+ * Number of data points in energy history chart
+ * Higher = longer history displayed
+ */
+export const CHART_HISTORY_LENGTH = 10000;
+
+/**
+ * Chart update throttle (frames)
+ * Update chart every N frames instead of every average computation
+ * Higher = better performance, less smooth chart
+ */
+export const CHART_UPDATE_THROTTLE = 5;
 
 /** Chart canvas width in pixels */
 export const CHART_CANVAS_WIDTH = 280;
 
 /** Chart canvas height in pixels */
 export const CHART_CANVAS_HEIGHT = 130;
+
+/**
+ * Chart downsampling factor
+ * Draw every Nth point for performance
+ * Higher = faster rendering, less detail
+ */
+export const CHART_DOWNSAMPLE_FACTOR = 10;
 
 /**
  * Number of horizontal grid lines in chart

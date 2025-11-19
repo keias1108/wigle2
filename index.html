@@ -198,6 +198,35 @@
         height: 100%;
       }
 
+      .chart-toggle {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(0, 255, 204, 0.3);
+        border: 2px solid rgba(0, 255, 204, 0.8);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #00ffcc;
+        font-size: 0.9em;
+        transition: all 0.2s ease;
+        z-index: 10;
+      }
+
+      .chart-toggle:hover {
+        background: rgba(0, 255, 204, 0.5);
+        transform: scale(1.1);
+      }
+
+      .chart-toggle.active {
+        background: rgba(0, 255, 204, 0.5);
+        box-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+      }
+
       #info {
         position: fixed;
         top: 10px;
@@ -539,6 +568,7 @@
     </div>
 
     <div id="chart">
+      <button class="chart-toggle active" id="toggleChart">📊</button>
       <canvas id="chartCanvas"></canvas>
     </div>
 
