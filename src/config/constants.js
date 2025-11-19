@@ -127,3 +127,30 @@ export const AVERAGE_COMPUTE_THROTTLE = 2;
 // ========== Interaction Modes ==========
 /** Available interaction modes for mouse clicks */
 export const INTERACTION_MODES = ['energy', 'attract', 'repel'];
+
+// ========== 3D Display ==========
+/**
+ * Display mesh resolution (segments)
+ * Lower = better performance, Higher = more detail
+ * 256 = 65,536 vertices (recommended)
+ * 512 = 262,144 vertices (high quality)
+ */
+export const DISPLAY_MESH_RESOLUTION = 256;
+
+/**
+ * Displacement scale for 3D terrain height
+ * Controls how much energy values affect Z-axis
+ * Higher = more dramatic peaks and valleys
+ */
+export const DISPLACEMENT_SCALE = 0.5;
+
+/**
+ * Camera distance from origin
+ * Larger = farther away view
+ */
+export const CAMERA_DISTANCE = 2.5;
+
+/**
+ * Camera field of view in degrees
+ */
+export const CAMERA_FOV = 60;

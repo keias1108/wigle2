@@ -17,6 +17,10 @@ import {
   MIN_CANVAS_HEIGHT,
   MAX_CANVAS_WIDTH_OFFSET,
   MAX_CANVAS_HEIGHT_OFFSET,
+  DISPLAY_MESH_RESOLUTION,
+  DISPLACEMENT_SCALE,
+  CAMERA_DISTANCE,
+  CAMERA_FOV,
 } from '../config/constants.js';
 import {
   getLifecycleShader,
@@ -184,11 +188,16 @@ export class EnergyLifeSimulation {
 
   #setupRenderer() {
     this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+    // Perspective camera for 3D terrain effect
+    const aspect = this.canvasWidth / this.canvasHeight;
+    this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 100);
+    this.camera.position.set(0, -CAMERA_DISTANCE, CAMERA_DISTANCE * 0.8);
+    this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.dom.canvas,
-      antialias: false,
+      antialias: true,  // Enable for smoother 3D
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
@@ -281,10 +290,19 @@ export class EnergyLifeSimulation {
   }
 
   #setupDisplay() {
-    const geometry = new THREE.PlaneGeometry(2, 2);
+    // High-resolution mesh for 3D terrain effect
+    // Each vertex corresponds to a simulation grid cell
+    const geometry = new THREE.PlaneGeometry(
+      2,
+      2,
+      DISPLAY_MESH_RESOLUTION,
+      DISPLAY_MESH_RESOLUTION
+    );
+
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         fieldTexture: { value: null },
+        displacementScale: { value: DISPLACEMENT_SCALE },
       },
       vertexShader: getDisplayVertexShader(),
       fragmentShader: getDisplayFragmentShader(),
