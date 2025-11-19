@@ -145,6 +145,7 @@ void main() {
 export function getDisplayVertexShader() {
   return `
 uniform sampler2D fieldTexture;
+uniform sampler2D prevFieldTexture;
 uniform float displacementScale;
 varying vec2 vUv;
 varying float vHeight;
@@ -152,8 +153,15 @@ varying float vHeight;
 void main() {
     vUv = uv;
 
-    // Sample energy value from texture
-    float energy = texture2D(fieldTexture, uv).r;
+    // Sample energy values from current and previous frame
+    float currentEnergy = texture2D(fieldTexture, uv).r;
+    float prevEnergy = texture2D(prevFieldTexture, uv).r;
+
+    // Average of current and previous frame for temporal smoothing (reduces flickering)
+    float energy = (prevFieldTexture == fieldTexture || prevEnergy == 0.0)
+                   ? currentEnergy
+                   : (currentEnergy + prevEnergy) * 0.5;
+
     vHeight = energy;
 
     // Create displaced position (2.5D terrain effect)
@@ -177,27 +185,34 @@ uniform float texelSize;
 varying vec2 vUv;
 varying float vHeight;
 
-// Cosine palette for smooth color transitions
-// Based on Inigo Quilez's technique
-vec3 cosinePalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
-    return a + b * cos(6.28318 * (c * t + d));
-}
-
+// Deep Space color palette
+// Black → Dark Blue → Purple → Cyan → White
 vec3 energyGradient(float energy) {
-    // Use cosine palette for smooth blue → cyan → green → yellow → white
-    vec3 a = vec3(0.5, 0.5, 0.5);    // DC offset
-    vec3 b = vec3(0.5, 0.5, 0.5);    // Amplitude
-    vec3 c = vec3(1.0, 1.0, 1.0);    // Frequency
-    vec3 d = vec3(0.0, 0.10, 0.20);  // Phase shift (blue → cyan → green → yellow)
+    vec3 color;
 
-    vec3 color = cosinePalette(energy, a, b, c, d);
+    if (energy < 0.2) {
+        // Deep space: pure black to very dark navy
+        vec3 black = vec3(0.0, 0.0, 0.0);
+        vec3 darkNavy = vec3(0.0, 0.0, 0.15);
+        color = mix(black, darkNavy, energy / 0.2);
+    } else if (energy < 0.5) {
+        // Dark blue to purple
+        vec3 darkBlue = vec3(0.0, 0.0, 0.5);
+        vec3 purple = vec3(0.4, 0.0, 0.6);
+        color = mix(darkBlue, purple, (energy - 0.2) / 0.3);
+    } else if (energy < 0.8) {
+        // Purple to bright cyan
+        vec3 purple = vec3(0.4, 0.0, 0.6);
+        vec3 cyan = vec3(0.0, 0.8, 1.0);
+        color = mix(purple, cyan, (energy - 0.5) / 0.3);
+    } else {
+        // Bright cyan to white
+        vec3 cyan = vec3(0.0, 0.8, 1.0);
+        vec3 white = vec3(1.0, 1.0, 1.0);
+        color = mix(cyan, white, (energy - 0.8) / 0.2);
 
-    // Enhance brightness at high energy levels
-    color += energy * 0.15;
-
-    // Add subtle sparkle at very high energy (smoother than before)
-    if (energy > 0.85) {
-        color += vec3(0.1) * sin(energy * 30.0) * smoothstep(0.85, 1.0, energy);
+        // Subtle sparkle at very high energy
+        color += vec3(0.1) * sin(energy * 30.0) * smoothstep(0.9, 1.0, energy);
     }
 
     return color;
