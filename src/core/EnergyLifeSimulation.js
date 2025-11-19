@@ -221,9 +221,7 @@ export class EnergyLifeSimulation {
         console.log('Simulation restored successfully');
       } catch (error) {
         console.error('Failed to restore WebGL context:', error);
-        alert(
-          'Failed to restore WebGL. Please refresh the page.',
-        );
+        alert('Failed to restore WebGL. Please refresh the page.');
       }
     });
   }
@@ -420,7 +418,9 @@ export class EnergyLifeSimulation {
       this.dom.toggleChart.addEventListener('click', () => {
         this.chartEnabled = !this.chartEnabled;
         this.dom.toggleChart.classList.toggle('active', this.chartEnabled);
-        this.dom.chartCanvas.style.display = this.chartEnabled ? 'block' : 'none';
+        this.dom.chartCanvas.style.display = this.chartEnabled
+          ? 'block'
+          : 'none';
       });
     }
   }
@@ -444,7 +444,7 @@ export class EnergyLifeSimulation {
     const step = CHART_DOWNSAMPLE_FACTOR;
     for (let i = 0; i < this.chartHistory.length; i += step) {
       const x = (i / CHART_HISTORY_LENGTH) * width;
-      const y = height - this.chartHistory[i] * height;
+      const y = height - this.chartHistory[i] * height * 2;
       if (i === 0) {
         this.chartCtx.moveTo(x, y);
       } else {
@@ -672,7 +672,6 @@ export class EnergyLifeSimulation {
         this.interactionTexture;
     }
   }
-
 
   #updateAverageEnergy(average) {
     if (this.dom.avgLabel) {

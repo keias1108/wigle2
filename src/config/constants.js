@@ -82,7 +82,7 @@ export const STAGNATION_NOISE_AMPLITUDE = 0.001;
  * Number of data points in energy history chart
  * Higher = longer history displayed
  */
-export const CHART_HISTORY_LENGTH = 10000;
+export const CHART_HISTORY_LENGTH = 1000;
 
 /**
  * Chart update throttle (frames)
