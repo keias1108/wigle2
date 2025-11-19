@@ -139,13 +139,43 @@ void main() {
 }
 
 /**
+ * Gets the heightMap shader for temporal smoothing
+ * Uses lerp (mix) to create inertia-based smooth terrain movement
+ * @returns {string} GLSL fragment shader code
+ */
+export function getHeightMapShader() {
+  return `
+uniform sampler2D fieldTexture;
+uniform sampler2D heightMap;
+uniform float smoothness;
+uniform vec2 texelSize;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy * texelSize;
+
+    // Current energy from simulation
+    float targetEnergy = texture2D(fieldTexture, uv).r;
+
+    // Previous smoothed height
+    float previousHeight = texture2D(heightMap, uv).r;
+
+    // Lerp with inertia: mix(old, new, smoothness)
+    // Lower smoothness = more viscous (honey-like)
+    // Higher smoothness = faster response
+    float currentHeight = mix(previousHeight, targetEnergy, smoothness);
+
+    gl_FragColor = vec4(currentHeight, 0.0, 0.0, 1.0);
+}
+`;
+}
+
+/**
  * Gets the display vertex shader
  * @returns {string} GLSL vertex shader code
  */
 export function getDisplayVertexShader() {
   return `
-uniform sampler2D fieldTexture;
-uniform sampler2D prevFieldTexture;
+uniform sampler2D heightMapTexture;
 uniform float displacementScale;
 varying vec2 vUv;
 varying float vHeight;
@@ -153,19 +183,14 @@ varying float vHeight;
 void main() {
     vUv = uv;
 
-    // Sample energy values from current and previous frame
-    float currentEnergy = texture2D(fieldTexture, uv).r;
-    float prevEnergy = texture2D(prevFieldTexture, uv).r;
-
-    // Average of current and previous frame for temporal smoothing (reduces flickering)
-    // On first frame, prevEnergy will be 0.0, so we use currentEnergy only
-    float energy = (prevEnergy == 0.0) ? currentEnergy : (currentEnergy + prevEnergy) * 0.5;
-
-    vHeight = energy;
+    // Use smoothed heightMap for displacement (geometry)
+    // This provides temporal smoothing with inertia
+    float height = texture2D(heightMapTexture, uv).r;
+    vHeight = height;
 
     // Create displaced position (2.5D terrain effect)
     vec3 displaced = position;
-    displaced.z = energy * displacementScale;
+    displaced.z = height * displacementScale;
 
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
 }
