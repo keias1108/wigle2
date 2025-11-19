@@ -420,7 +420,7 @@ export class EnergyLifeSimulation {
       this.dom.toggleChart.addEventListener('click', () => {
         this.chartEnabled = !this.chartEnabled;
         this.dom.toggleChart.classList.toggle('active', this.chartEnabled);
-        this.dom.chart.style.display = this.chartEnabled ? 'block' : 'none';
+        this.dom.chartCanvas.style.display = this.chartEnabled ? 'block' : 'none';
       });
     }
   }
