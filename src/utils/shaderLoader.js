@@ -81,7 +81,11 @@ float random(vec2 co) {
 void main() {
     vec2 uv = gl_FragCoord.xy * texelSize;
 
+    // Dual-channel architecture (Neural Cellular Automata)
+    // R channel: Energy (fast, high-frequency, for color)
+    // G channel: Matter (slow, accumulated, for geometry)
     float currentEnergy = texture2D(field, uv).x;
+    float currentMatter = texture2D(field, uv).y;
     vec3 interaction = texture2D(interactionTexture, uv).rgb;
 
     float potential = 0.0;
@@ -133,38 +137,14 @@ void main() {
 
     newEnergy = clamp(newEnergy, 0.0, 1.0);
 
-    gl_FragColor = vec4(newEnergy, 0.0, 0.0, 1.0);
-}
-`;
-}
+    // G channel (Matter): Residual connection with slow accumulation
+    // Acts as physical mass that slowly follows energy flow
+    // 0.05 = low smoothness factor for viscous, honey-like movement
+    float newMatter = mix(currentMatter, newEnergy, 0.05);
+    newMatter = clamp(newMatter, 0.0, 1.0);
 
-/**
- * Gets the heightMap shader for temporal smoothing
- * Uses lerp (mix) to create inertia-based smooth terrain movement
- * @returns {string} GLSL fragment shader code
- */
-export function getHeightMapShader() {
-  return `
-uniform sampler2D fieldTexture;
-uniform sampler2D heightMap;
-uniform float smoothness;
-uniform vec2 texelSize;
-
-void main() {
-    vec2 uv = gl_FragCoord.xy * texelSize;
-
-    // Current energy from simulation
-    float targetEnergy = texture2D(fieldTexture, uv).r;
-
-    // Previous smoothed height
-    float previousHeight = texture2D(heightMap, uv).r;
-
-    // Lerp with inertia: mix(old, new, smoothness)
-    // Lower smoothness = more viscous (honey-like)
-    // Higher smoothness = faster response
-    float currentHeight = mix(previousHeight, targetEnergy, smoothness);
-
-    gl_FragColor = vec4(currentHeight, 0.0, 0.0, 1.0);
+    // Output dual-channel: R=Energy (flow), G=Matter (structure)
+    gl_FragColor = vec4(newEnergy, newMatter, 0.0, 1.0);
 }
 `;
 }
@@ -175,7 +155,7 @@ void main() {
  */
 export function getDisplayVertexShader() {
   return `
-uniform sampler2D heightMapTexture;
+uniform sampler2D fieldTexture;
 uniform float displacementScale;
 varying vec2 vUv;
 varying float vHeight;
@@ -183,9 +163,9 @@ varying float vHeight;
 void main() {
     vUv = uv;
 
-    // Use smoothed heightMap for displacement (geometry)
-    // This provides temporal smoothing with inertia
-    float height = texture2D(heightMapTexture, uv).r;
+    // G channel (Matter) for displacement - smooth, viscous terrain
+    // This channel slowly accumulates and provides stable geometry
+    float height = texture2D(fieldTexture, uv).g;
     vHeight = height;
 
     // Create displaced position (2.5D terrain effect)
@@ -243,13 +223,14 @@ vec3 energyGradient(float energy) {
 }
 
 void main() {
-    float energy = texture2D(fieldTexture, vUv).x;
+    // R channel (Energy) for color - fast, flickering flow
+    float energy = texture2D(fieldTexture, vUv).r;
 
-    // Calculate normal from height differences for lighting
-    float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).x;
-    float heightR = texture2D(fieldTexture, vUv + vec2(texelSize, 0.0)).x;
-    float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).x;
-    float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).x;
+    // G channel (Matter) for normal calculation - smooth, stable structure
+    float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).g;
+    float heightR = texture2D(fieldTexture, vUv + vec2(texelSize, 0.0)).g;
+    float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).g;
+    float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).g;
 
     // Calculate gradients (slope) - reduced for subtler lighting
     float dx = (heightR - heightL) * displacementScale;

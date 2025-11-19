@@ -21,11 +21,9 @@ import {
   DISPLACEMENT_SCALE,
   CAMERA_DISTANCE,
   CAMERA_FOV,
-  HEIGHTMAP_SMOOTHNESS,
 } from '../config/constants.js';
 import {
   getLifecycleShader,
-  getHeightMapShader,
   getDisplayVertexShader,
   getDisplayFragmentShader,
   getDownsampleFragmentShader,
@@ -156,20 +154,10 @@ export class EnergyLifeSimulation {
         this.computeFrameCounter = 0;
       }
 
-      // Update heightMap shader uniforms with current field texture
-      this.computeVariables.heightMap.material.uniforms.fieldTexture.value =
-        currentRenderTarget.texture;
-
-      // Get smoothed heightMap for display
-      const heightMapRenderTarget = this.computeRenderer.getCurrentRenderTarget(
-        this.computeVariables.heightMap,
-      );
-
-      // Update display material uniforms
-      // fieldTexture: original energy for color (flash/sparkle)
-      // heightMapTexture: smoothed height for geometry (smooth terrain)
+      // Update display material with dual-channel field texture
+      // R channel (Energy): fast-changing, for color/glow
+      // G channel (Matter): slow-accumulating, for geometry/normals
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
-      this.material.uniforms.heightMapTexture.value = heightMapRenderTarget.texture;
     }
 
     this.renderer.render(this.scene, this.camera);
@@ -328,30 +316,6 @@ export class EnergyLifeSimulation {
     ]);
     this.computeVariables.field = fieldVariable;
 
-    // HeightMap variable for temporal smoothing with inertia
-    const heightMapTexture = this.computeRenderer.createTexture();
-    clearTexture(heightMapTexture); // Start with zero height
-
-    const heightMapVariable = this.computeRenderer.addVariable(
-      'heightMap',
-      getHeightMapShader(),
-      heightMapTexture,
-    );
-
-    heightMapVariable.material.uniforms = {
-      fieldTexture: { value: null }, // Will be set to field's render target
-      smoothness: { value: HEIGHTMAP_SMOOTHNESS },
-      texelSize: {
-        value: new THREE.Vector2(1.0 / this.simulationSize, 1.0 / this.simulationSize),
-      },
-    };
-
-    this.computeRenderer.setVariableDependencies(heightMapVariable, [
-      fieldVariable,
-      heightMapVariable,
-    ]);
-    this.computeVariables.heightMap = heightMapVariable;
-
     const error = this.computeRenderer.init();
     if (error !== null) {
       console.error(error);
@@ -370,8 +334,7 @@ export class EnergyLifeSimulation {
 
     this.material = new THREE.ShaderMaterial({
       uniforms: {
-        fieldTexture: { value: null }, // Original energy for color
-        heightMapTexture: { value: null }, // Smoothed height for displacement
+        fieldTexture: { value: null }, // Dual-channel: R=Energy (color), G=Matter (geometry)
         displacementScale: { value: DISPLACEMENT_SCALE },
         texelSize: { value: 1.0 / this.simulationSize },
       },
