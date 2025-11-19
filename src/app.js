@@ -1,58 +1,19 @@
-import { DEFAULT_PARAMS, PARAM_CONTROL_IDS } from '../config/defaults.js';
 import {
+  DEFAULT_PARAMS,
   SIMULATION_SIZE,
   INITIAL_CANVAS_WIDTH,
   INITIAL_CANVAS_HEIGHT,
+  PARAM_CONTROL_IDS,
   INTERACTION_MODES,
   INTERACTION_RADIUS,
   CHART_HISTORY_LENGTH,
-  CHART_CANVAS_WIDTH,
-  CHART_CANVAS_HEIGHT,
-  CHART_GRID_DIVISIONS,
-  FPS_UPDATE_INTERVAL,
-  AVERAGE_COMPUTE_THROTTLE,
-  MIN_CANVAS_WIDTH,
-  MIN_CANVAS_HEIGHT,
-  MAX_CANVAS_WIDTH_OFFSET,
-  MAX_CANVAS_HEIGHT_OFFSET,
-} from '../config/constants.js';
-import {
-  getLifecycleShader,
-  getDisplayVertexShader,
-  getDisplayFragmentShader,
-  getDownsampleFragmentShader,
-} from '../utils/shaderLoader.js';
-import {
-  seedPattern,
-  clearTexture,
-  updateInteractionTexture,
-} from '../utils/textureUtils.js';
-import { GPUComputationRenderer } from './GPUComputationRenderer.js';
+} from './config.js';
+import { getLifecycleShader } from './shaders.js';
+import { GPUComputationRenderer } from './gpuComputationRenderer.js';
 
 const THREE = window.THREE;
 
-/**
- * Energy Life Simulation
- *
- * GPU-accelerated cellular automaton simulating energy dynamics.
- * Implements a particle life system with:
- * - Neighbor-based attraction/repulsion kernels
- * - Growth function based on local energy potential
- * - Energy metabolism and diffusion
- * - User interaction (inject energy, attract, repel)
- *
- * @class
- */
 export class EnergyLifeSimulation {
-  /**
-   * Creates a new simulation instance
-   *
-   * @param {Object} options - Configuration options
-   * @param {string} [options.canvasSelector='#canvas'] - CSS selector for WebGL canvas
-   * @param {string} [options.containerSelector='#canvasContainer'] - CSS selector for canvas container
-   * @param {string} [options.controlsSelector='#controls'] - CSS selector for control panel
-   * @param {string} [options.chartCanvasSelector='#chartCanvas'] - CSS selector for chart canvas
-   */
   constructor({
     canvasSelector = '#canvas',
     containerSelector = '#canvasContainer',
@@ -77,7 +38,6 @@ export class EnergyLifeSimulation {
     this.speedMultiplier = 1;
     this.frameCount = 0;
     this.lastTime = performance.now();
-    this.computeFrameCounter = 0; // For throttling average computation
 
     this.interactionTexture = null;
     this.interactionMode = 'energy';
@@ -100,17 +60,10 @@ export class EnergyLifeSimulation {
     this.animate = this.animate.bind(this);
   }
 
-  /**
-   * Initializes the simulation
-   *
-   * Sets up all components: WebGL renderer, GPU computation,
-   * UI controls, interaction handlers, and starts animation loop.
-   */
   init() {
     this.#cacheDom();
     this.#setupCanvas();
     this.#setupRenderer();
-    this.#setupWebGLErrorHandling();
     this.#initComputeRenderer();
     this.#setupDisplay();
     this.#setupControls();
@@ -127,7 +80,6 @@ export class EnergyLifeSimulation {
     if (!this.isPaused && this.speedMultiplier > 0) {
       for (let i = 0; i < this.speedMultiplier; i++) {
         this.computeRenderer.compute();
-        this.computeFrameCounter++;
       }
 
       this.#updateInteractionTexture();
@@ -136,14 +88,10 @@ export class EnergyLifeSimulation {
         this.computeVariables.field,
       );
 
-      // Throttle average computation for better performance
-      if (this.computeFrameCounter >= AVERAGE_COMPUTE_THROTTLE) {
-        const average = this.#computeAverage(currentRenderTarget.texture);
-        this.computeVariables.field.material.uniforms.globalAverage.value =
-          average;
-        this.#updateAverageEnergy(average);
-        this.computeFrameCounter = 0;
-      }
+      const average = this.#computeAverage(currentRenderTarget.texture);
+      this.computeVariables.field.material.uniforms.globalAverage.value =
+        average;
+      this.#updateAverageEnergy(average);
 
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
     }
@@ -186,42 +134,6 @@ export class EnergyLifeSimulation {
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
   }
 
-  /**
-   * Sets up WebGL error handling
-   * Handles context loss/restoration gracefully
-   * @private
-   */
-  #setupWebGLErrorHandling() {
-    this.dom.canvas.addEventListener('webglcontextlost', (event) => {
-      event.preventDefault();
-      console.warn('WebGL context lost. Pausing simulation...');
-      this.isPaused = true;
-
-      // Show user-friendly message
-      if (this.dom.avgLabel) {
-        this.dom.avgLabel.textContent = 'WebGL context lost';
-      }
-    });
-
-    this.dom.canvas.addEventListener('webglcontextrestored', () => {
-      console.log('WebGL context restored. Reinitializing...');
-
-      // Reinitialize renderer and computation
-      try {
-        this.#setupRenderer();
-        this.#initComputeRenderer();
-        this.#setupDisplay();
-        this.isPaused = false;
-        console.log('Simulation restored successfully');
-      } catch (error) {
-        console.error('Failed to restore WebGL context:', error);
-        alert(
-          'Failed to restore WebGL. Please refresh the page.',
-        );
-      }
-    });
-  }
-
   #initComputeRenderer() {
     this.computeRenderer = new GPUComputationRenderer(
       SIMULATION_SIZE,
@@ -230,10 +142,10 @@ export class EnergyLifeSimulation {
     );
 
     const initialTexture = this.computeRenderer.createTexture();
-    seedPattern(initialTexture);
+    this.#seedPattern(initialTexture);
 
     this.interactionTexture = this.computeRenderer.createTexture();
-    clearTexture(this.interactionTexture);
+    this.#clearTexture(this.interactionTexture);
 
     const fieldVariable = this.computeRenderer.addVariable(
       'field',
@@ -278,8 +190,46 @@ export class EnergyLifeSimulation {
       uniforms: {
         fieldTexture: { value: null },
       },
-      vertexShader: getDisplayVertexShader(),
-      fragmentShader: getDisplayFragmentShader(),
+      vertexShader: `
+                    varying vec2 vUv;
+                    void main() {
+                        vUv = uv;
+                        gl_Position = vec4(position, 1.0);
+                    }
+                `,
+      fragmentShader: `
+                    uniform sampler2D fieldTexture;
+                    varying vec2 vUv;
+                    
+                    vec3 energyGradient(float energy) {
+                        vec3 color;
+                        
+                        if (energy < 0.1) {
+                            color = mix(vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.2), energy * 10.0);
+                        } else if (energy < 0.3) {
+                            color = mix(vec3(0.0, 0.0, 0.2), vec3(0.0, 0.3, 0.8), (energy - 0.1) * 5.0);
+                        } else if (energy < 0.5) {
+                            color = mix(vec3(0.0, 0.3, 0.8), vec3(0.0, 0.8, 1.0), (energy - 0.3) * 5.0);
+                        } else if (energy < 0.7) {
+                            color = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.3), (energy - 0.5) * 5.0);
+                        } else if (energy < 0.85) {
+                            color = mix(vec3(0.2, 1.0, 0.3), vec3(1.0, 1.0, 0.0), (energy - 0.7) * 6.67);
+                        } else {
+                            color = mix(vec3(1.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), (energy - 0.85) * 6.67);
+                            color += vec3(0.2) * sin(energy * 50.0);
+                        }
+                        
+                        color += energy * 0.15;
+                        
+                        return color;
+                    }
+                    
+                    void main() {
+                        float energy = texture2D(fieldTexture, vUv).x;
+                        vec3 color = energyGradient(energy);
+                        gl_FragColor = vec4(color, 1.0);
+                    }
+                `,
     });
 
     const mesh = new THREE.Mesh(geometry, this.material);
@@ -355,50 +305,33 @@ export class EnergyLifeSimulation {
 
     if (this.dom.savePreset) {
       this.dom.savePreset.addEventListener('click', () => {
-        try {
-          const preset = JSON.stringify(this.params);
-          localStorage.setItem('energyLifePreset', preset);
-          alert('Preset saved!');
-        } catch (error) {
-          console.error('Failed to save preset:', error);
-          if (error.name === 'QuotaExceededError') {
-            alert('Storage quota exceeded. Cannot save preset.');
-          } else {
-            alert('Failed to save preset. Check console for details.');
-          }
-        }
+        const preset = JSON.stringify(this.params);
+        localStorage.setItem('energyLifePreset', preset);
+        alert('Preset saved!');
       });
     }
 
     if (this.dom.loadPreset) {
       this.dom.loadPreset.addEventListener('click', () => {
-        try {
-          const preset = localStorage.getItem('energyLifePreset');
-          if (!preset) {
-            alert('No saved preset found.');
-            return;
-          }
+        const preset = localStorage.getItem('energyLifePreset');
+        if (!preset) return;
 
-          const loaded = JSON.parse(preset);
-          Object.keys(loaded).forEach((key) => {
-            if (!(key in this.params)) return;
-            this.params[key] = loaded[key];
-            const slider = document.getElementById(key);
-            const input = document.getElementById(`${key}Value`);
-            if (slider && input) {
-              slider.value = loaded[key];
-              input.value = loaded[key];
-            }
-            if (this.computeVariables.field?.material?.uniforms[key]) {
-              this.computeVariables.field.material.uniforms[key].value =
-                loaded[key];
-            }
-          });
-          alert('Preset loaded!');
-        } catch (error) {
-          console.error('Failed to load preset:', error);
-          alert('Failed to load preset. It may be corrupted.');
-        }
+        const loaded = JSON.parse(preset);
+        Object.keys(loaded).forEach((key) => {
+          if (!(key in this.params)) return;
+          this.params[key] = loaded[key];
+          const slider = document.getElementById(key);
+          const input = document.getElementById(`${key}Value`);
+          if (slider && input) {
+            slider.value = loaded[key];
+            input.value = loaded[key];
+          }
+          if (this.computeVariables.field?.material?.uniforms[key]) {
+            this.computeVariables.field.material.uniforms[key].value =
+              loaded[key];
+          }
+        });
+        alert('Preset loaded!');
       });
     }
   }
@@ -406,8 +339,8 @@ export class EnergyLifeSimulation {
   #setupChart() {
     if (!this.dom.chartCanvas) return;
     this.chartCtx = this.dom.chartCanvas.getContext('2d');
-    this.dom.chartCanvas.width = CHART_CANVAS_WIDTH;
-    this.dom.chartCanvas.height = CHART_CANVAS_HEIGHT;
+    this.dom.chartCanvas.width = 280;
+    this.dom.chartCanvas.height = 130;
   }
 
   #updateChart(avgEnergy) {
@@ -439,8 +372,8 @@ export class EnergyLifeSimulation {
 
     this.chartCtx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     this.chartCtx.lineWidth = 0.5;
-    for (let i = 0; i <= CHART_GRID_DIVISIONS; i++) {
-      const y = (i / CHART_GRID_DIVISIONS) * height;
+    for (let i = 0; i <= 4; i++) {
+      const y = (i / 4) * height;
       this.chartCtx.beginPath();
       this.chartCtx.moveTo(0, y);
       this.chartCtx.lineTo(width, y);
@@ -462,7 +395,7 @@ export class EnergyLifeSimulation {
 
     const endInteraction = () => {
       this.isMouseDown = false;
-      clearTexture(this.interactionTexture);
+      this.#clearTexture(this.interactionTexture);
       this.#updateInteractionTexture();
     };
 
@@ -513,34 +446,22 @@ export class EnergyLifeSimulation {
 
       if (currentHandle.classList.contains('right')) {
         this.canvasWidth = Math.max(
-          MIN_CANVAS_WIDTH,
-          Math.min(
-            window.innerWidth - MAX_CANVAS_WIDTH_OFFSET,
-            startWidth + deltaX,
-          ),
+          400,
+          Math.min(window.innerWidth - 100, startWidth + deltaX),
         );
       } else if (currentHandle.classList.contains('bottom')) {
         this.canvasHeight = Math.max(
-          MIN_CANVAS_HEIGHT,
-          Math.min(
-            window.innerHeight - MAX_CANVAS_HEIGHT_OFFSET,
-            startHeight + deltaY,
-          ),
+          300,
+          Math.min(window.innerHeight - 100, startHeight + deltaY),
         );
       } else if (currentHandle.classList.contains('corner')) {
         this.canvasWidth = Math.max(
-          MIN_CANVAS_WIDTH,
-          Math.min(
-            window.innerWidth - MAX_CANVAS_WIDTH_OFFSET,
-            startWidth + deltaX,
-          ),
+          400,
+          Math.min(window.innerWidth - 100, startWidth + deltaX),
         );
         this.canvasHeight = Math.max(
-          MIN_CANVAS_HEIGHT,
-          Math.min(
-            window.innerHeight - MAX_CANVAS_HEIGHT_OFFSET,
-            startHeight + deltaY,
-          ),
+          300,
+          Math.min(window.innerHeight - 100, startHeight + deltaY),
         );
       }
 
@@ -622,8 +543,30 @@ export class EnergyLifeSimulation {
           inputTexture: { value: null },
           texelSize: { value: new THREE.Vector2(1 / size, 1 / size) },
         },
-        vertexShader: `void main() { gl_Position = vec4(position, 1.0); }`,
-        fragmentShader: getDownsampleFragmentShader(),
+        vertexShader: `
+                    void main() {
+                        gl_Position = vec4(position, 1.0);
+                    }
+                `,
+        fragmentShader: `
+                    uniform sampler2D inputTexture;
+                    uniform vec2 texelSize;
+                    void main() {
+                        vec2 coord = gl_FragCoord.xy - vec2(0.5);
+                        vec2 base = coord * 2.0;
+                        vec2 uv00 = (base + vec2(0.5, 0.5)) * texelSize;
+                        vec2 uv10 = (base + vec2(1.5, 0.5)) * texelSize;
+                        vec2 uv01 = (base + vec2(0.5, 1.5)) * texelSize;
+                        vec2 uv11 = (base + vec2(1.5, 1.5)) * texelSize;
+                        float sum = (
+                            texture2D(inputTexture, uv00).x +
+                            texture2D(inputTexture, uv10).x +
+                            texture2D(inputTexture, uv01).x +
+                            texture2D(inputTexture, uv11).x
+                        ) * 0.25;
+                        gl_FragColor = vec4(sum, 0.0, 0.0, 1.0);
+                    }
+                `,
       });
 
       this.downsamplePasses.push({
@@ -641,13 +584,42 @@ export class EnergyLifeSimulation {
 
   #updateInteractionTexture() {
     if (this.isMouseDown) {
-      updateInteractionTexture(
-        this.interactionTexture,
-        this.mousePos,
-        this.interactionMode,
-        SIMULATION_SIZE,
-        INTERACTION_RADIUS,
-      );
+      const data = this.interactionTexture.image.data;
+      const centerX = Math.floor(this.mousePos.x * SIMULATION_SIZE);
+      const centerY = Math.floor(this.mousePos.y * SIMULATION_SIZE);
+      const radiusSquared = INTERACTION_RADIUS * INTERACTION_RADIUS;
+      const minX = Math.max(0, centerX - INTERACTION_RADIUS);
+      const maxX = Math.min(SIMULATION_SIZE - 1, centerX + INTERACTION_RADIUS);
+      const minY = Math.max(0, centerY - INTERACTION_RADIUS);
+      const maxY = Math.min(SIMULATION_SIZE - 1, centerY + INTERACTION_RADIUS);
+
+      for (let y = minY; y <= maxY; y++) {
+        const dy = y - centerY;
+        for (let x = minX; x <= maxX; x++) {
+          const dx = x - centerX;
+          const distSq = dx * dx + dy * dy;
+          if (distSq >= radiusSquared) continue;
+
+          const intensity = 1.0 - Math.sqrt(distSq) / INTERACTION_RADIUS;
+          const i = (y * SIMULATION_SIZE + x) * 4;
+
+          if (this.interactionMode === 'energy') {
+            data[i] = intensity;
+            data[i + 1] = 0;
+            data[i + 2] = 0;
+          } else if (this.interactionMode === 'attract') {
+            data[i] = 0;
+            data[i + 1] = intensity;
+            data[i + 2] = 0;
+          } else if (this.interactionMode === 'repel') {
+            data[i] = 0;
+            data[i + 1] = 0;
+            data[i + 2] = intensity;
+          }
+        }
+      }
+
+      this.interactionTexture.needsUpdate = true;
     }
 
     if (this.computeVariables.field) {
@@ -656,6 +628,26 @@ export class EnergyLifeSimulation {
     }
   }
 
+  #seedPattern(texture) {
+    const data = texture.image.data;
+    for (let i = 0; i < data.length; i += 4) {
+      const value = Math.random() * 0.05;
+      data[i] = value;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = 1;
+    }
+  }
+
+  #clearTexture(texture) {
+    const data = texture.image.data;
+    for (let i = 0; i < data.length; i += 4) {
+      data[i] = 0;
+      data[i + 1] = 0;
+      data[i + 2] = 0;
+      data[i + 3] = 1;
+    }
+  }
 
   #updateAverageEnergy(average) {
     if (this.dom.avgLabel) {
@@ -667,9 +659,8 @@ export class EnergyLifeSimulation {
   #updateFps() {
     this.frameCount += 1;
     const currentTime = performance.now();
-    if (currentTime - this.lastTime > FPS_UPDATE_INTERVAL) {
-      const fps =
-        (this.frameCount * FPS_UPDATE_INTERVAL) / (currentTime - this.lastTime);
+    if (currentTime - this.lastTime > 1000) {
+      const fps = (this.frameCount * 1000) / (currentTime - this.lastTime);
       if (this.dom.fpsLabel) {
         this.dom.fpsLabel.textContent = `FPS: ${fps.toFixed(1)}`;
       }
