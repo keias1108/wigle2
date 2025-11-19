@@ -78,8 +78,11 @@ export const FISSION_NOISE_AMPLITUDE = 0.1;
 export const STAGNATION_NOISE_AMPLITUDE = 0.001;
 
 // ========== Chart ==========
-/** Number of data points in energy history chart */
-export const CHART_HISTORY_LENGTH = 100;
+/**
+ * Number of data points in energy history chart
+ * Higher = longer history displayed
+ */
+export const CHART_HISTORY_LENGTH = 1000;
 
 /** Chart canvas width in pixels */
 export const CHART_CANVAS_WIDTH = 280;
