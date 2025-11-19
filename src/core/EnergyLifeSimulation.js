@@ -176,7 +176,7 @@ export class EnergyLifeSimulation {
 
   /**
    * Handles WASD keyboard camera movement
-   * RTS-style controls: camera moves relative to view direction
+   * Screen-relative controls: movement based on camera view direction
    * @private
    */
   #handleCameraMovement() {
@@ -189,24 +189,23 @@ export class EnergyLifeSimulation {
     const baseSpeed = 0.05;
     const moveSpeed = this.keys.Shift ? baseSpeed * 2 : baseSpeed;
 
-    // Calculate camera forward direction (XZ plane only, Y fixed for RTS feel)
-    const forward = new THREE.Vector3();
-    this.camera.getWorldDirection(forward);
-    forward.y = 0; // Keep movement on horizontal plane
-    forward.normalize();
+    // Get camera's right and up vectors (screen-relative directions)
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion);
 
-    // Calculate camera right direction
-    const right = new THREE.Vector3();
-    right.crossVectors(forward, new THREE.Vector3(0, 0, 1));
+    // Project to XY plane (Z is height, keep it fixed)
+    right.z = 0;
     right.normalize();
+    up.z = 0;
+    up.normalize();
 
-    // Calculate movement delta based on WASD input
+    // Calculate movement delta based on WASD input (screen-relative)
     const delta = new THREE.Vector3(0, 0, 0);
 
-    if (this.keys.KeyW) delta.add(forward);
-    if (this.keys.KeyS) delta.sub(forward);
-    if (this.keys.KeyD) delta.add(right);
-    if (this.keys.KeyA) delta.sub(right);
+    if (this.keys.KeyW) delta.add(up);      // Screen up
+    if (this.keys.KeyS) delta.sub(up);      // Screen down
+    if (this.keys.KeyD) delta.add(right);   // Screen right
+    if (this.keys.KeyA) delta.sub(right);   // Screen left
 
     // Normalize diagonal movement to prevent faster speed
     if (delta.length() > 0) {
