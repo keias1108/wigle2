@@ -79,6 +79,7 @@ export class EnergyLifeSimulation {
     this.computeRenderer = null;
     this.computeVariables = {};
     this.material = null;
+    this.controls = null;
 
     this.isPaused = false;
     this.speedMultiplier = 1;
@@ -160,6 +161,11 @@ export class EnergyLifeSimulation {
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
     }
 
+    // Update OrbitControls (required for damping)
+    if (this.controls) {
+      this.controls.update();
+    }
+
     this.renderer.render(this.scene, this.camera);
     this.#updateFps();
   }
@@ -192,10 +198,10 @@ export class EnergyLifeSimulation {
   #setupRenderer() {
     this.scene = new THREE.Scene();
 
-    // Top-down view with perspective for 2.5D effect
+    // Quarter view (45-degree angle) for visible 2.5D terrain
     const aspect = this.canvasWidth / this.canvasHeight;
     this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 100);
-    this.camera.position.set(0, 0, CAMERA_DISTANCE);
+    this.camera.position.set(0, -2.0, 1.5);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({
@@ -205,35 +211,12 @@ export class EnergyLifeSimulation {
     });
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
 
-    // Fit camera to fill screen with 3D plane
-    this.#fitCameraToScreen();
-  }
-
-  /**
-   * Adjusts camera distance to fit 3D plane to screen
-   * Ensures the 2x2 plane fills the viewport without black borders
-   * @private
-   */
-  #fitCameraToScreen() {
-    const aspect = this.canvasWidth / this.canvasHeight;
-    const fovRad = (CAMERA_FOV * Math.PI) / 180;
-
-    // Plane dimensions (from PlaneGeometry)
-    const planeHeight = 2;
-    const planeWidth = 2;
-
-    // Calculate distance needed to fit plane vertically
-    const distanceForHeight = planeHeight / (2 * Math.tan(fovRad / 2));
-
-    // Calculate distance needed to fit plane horizontally
-    const distanceForWidth = planeWidth / (2 * Math.tan(fovRad / 2) * aspect);
-
-    // Use the larger distance to ensure plane fits without clipping
-    // Multiply by 0.95 to slightly overfill (no black borders)
-    const distance = Math.max(distanceForHeight, distanceForWidth) * 0.95;
-
-    this.camera.position.z = distance;
-    this.camera.updateProjectionMatrix();
+    // Setup OrbitControls for free camera rotation
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+    this.controls.target.set(0, 0, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.05;
+    this.controls.update();
   }
 
   /**
@@ -651,10 +634,9 @@ export class EnergyLifeSimulation {
       this.dom.container.style.height = `${this.canvasHeight}px`;
       this.renderer.setSize(this.canvasWidth, this.canvasHeight);
 
-      // Update camera aspect ratio and refit to screen
+      // Update camera aspect ratio for resize
       this.camera.aspect = this.canvasWidth / this.canvasHeight;
       this.camera.updateProjectionMatrix();
-      this.#fitCameraToScreen();
     });
 
     document.addEventListener('mouseup', () => {
