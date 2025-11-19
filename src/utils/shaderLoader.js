@@ -249,9 +249,9 @@ void main() {
     // Low ambient, high diffuse for dramatic shadows (30% ambient, 70% diffuse)
     float lighting = 0.3 + 0.7 * diffuse;
 
-    // Base terrain color (G channel = dark rocky surface)
-    vec3 darkRock = vec3(0.1, 0.1, 0.15);  // Very dark blue-gray
-    vec3 lightRock = vec3(0.3, 0.25, 0.2); // Lighter brown-gray
+    // Base terrain color (G channel = deep navy/purple rocky surface)
+    vec3 darkRock = vec3(0.05, 0.0, 0.25);   // Deep navy blue
+    vec3 lightRock = vec3(0.3, 0.15, 0.5);   // Purple highlight
     vec3 terrainColor = mix(darkRock, lightRock, matter);
 
     // Apply lighting to terrain (creates shadows and highlights)
