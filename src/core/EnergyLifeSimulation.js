@@ -499,6 +499,26 @@ export class EnergyLifeSimulation {
             parseInt(btn.dataset.speed, 10) === this.speedMultiplier,
           );
         });
+      } else if (event.code === 'Digit2') {
+        event.preventDefault();
+        this.isPaused = false;
+        this.speedMultiplier = 2;
+        this.dom.speedButtons.forEach((btn) => {
+          btn.classList.toggle(
+            'active',
+            parseInt(btn.dataset.speed, 10) === this.speedMultiplier,
+          );
+        });
+      } else if (event.code === 'Digit3') {
+        event.preventDefault();
+        this.isPaused = false;
+        this.speedMultiplier = 5;
+        this.dom.speedButtons.forEach((btn) => {
+          btn.classList.toggle(
+            'active',
+            parseInt(btn.dataset.speed, 10) === this.speedMultiplier,
+          );
+        });
       }
     });
   }
