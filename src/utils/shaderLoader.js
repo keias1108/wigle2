@@ -223,8 +223,9 @@ vec3 energyGradient(float energy) {
 }
 
 void main() {
-    // R channel (Energy) for color - fast, flickering flow
-    float energy = texture2D(fieldTexture, vUv).r;
+    // Dual-channel separation
+    float energy = texture2D(fieldTexture, vUv).r;  // R: Fast energy flow
+    float matter = texture2D(fieldTexture, vUv).g;  // G: Slow terrain structure
 
     // G channel (Matter) for normal calculation - smooth, stable structure
     float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).g;
@@ -232,27 +233,38 @@ void main() {
     float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).g;
     float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).g;
 
-    // Calculate gradients (slope) - reduced for subtler lighting
+    // Calculate gradients (slope) - stronger for visible depth
     float dx = (heightR - heightL) * displacementScale;
     float dy = (heightU - heightD) * displacementScale;
 
-    // Normal vector (very subtle bump mapping for smooth appearance)
-    vec3 normal = normalize(vec3(-dx * 3.0, -dy * 3.0, 1.0));
+    // Normal vector (stronger bump mapping for 3D depth perception)
+    vec3 normal = normalize(vec3(-dx * 10.0, -dy * 10.0, 1.0));
 
-    // Light from directly above with slight angle
-    vec3 lightDir = normalize(vec3(0.2, 0.2, 1.0));
+    // Light from above-right for dramatic shadows
+    vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
 
-    // Diffuse lighting
+    // Diffuse lighting (stronger contrast for visible terrain)
     float diffuse = max(dot(normal, lightDir), 0.0);
 
-    // Much more ambient, minimal diffuse for natural, non-flickering look
-    float lighting = 0.75 + 0.25 * diffuse;
+    // Low ambient, high diffuse for dramatic shadows (30% ambient, 70% diffuse)
+    float lighting = 0.3 + 0.7 * diffuse;
 
-    // Apply lighting to color
-    vec3 baseColor = energyGradient(energy);
-    vec3 litColor = baseColor * lighting;
+    // Base terrain color (G channel = dark rocky surface)
+    vec3 darkRock = vec3(0.1, 0.1, 0.15);  // Very dark blue-gray
+    vec3 lightRock = vec3(0.3, 0.25, 0.2); // Lighter brown-gray
+    vec3 terrainColor = mix(darkRock, lightRock, matter);
 
-    gl_FragColor = vec4(litColor, 1.0);
+    // Apply lighting to terrain (creates shadows and highlights)
+    vec3 litTerrain = terrainColor * lighting;
+
+    // Energy glow (R channel = electric neon overlay)
+    vec3 energyGlow = energyGradient(energy);
+
+    // Additive blending: dark terrain + bright energy glow
+    // Energy acts as "lightning flowing over mountains"
+    vec3 finalColor = litTerrain + energyGlow * energy * 0.8;
+
+    gl_FragColor = vec4(finalColor, 1.0);
 }
 `;
 }

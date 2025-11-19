@@ -91,6 +91,7 @@ export class EnergyLifeSimulation {
     this.interactionMode = 'energy';
     this.isMouseDown = false;
     this.mousePos = { x: 0, y: 0 };
+    this.keys = {}; // Keyboard state for WASD camera movement
 
     this.chartHistory = [];
     this.chartEnabled = true; // Chart toggle state
@@ -161,6 +162,9 @@ export class EnergyLifeSimulation {
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
     }
 
+    // WASD camera movement (RTS-style controls)
+    this.#handleCameraMovement();
+
     // Update OrbitControls (required for damping)
     if (this.controls) {
       this.controls.update();
@@ -168,6 +172,57 @@ export class EnergyLifeSimulation {
 
     this.renderer.render(this.scene, this.camera);
     this.#updateFps();
+  }
+
+  /**
+   * Handles WASD keyboard camera movement
+   * RTS-style controls: camera moves relative to view direction
+   * @private
+   */
+  #handleCameraMovement() {
+    // Check if any movement keys are pressed
+    if (!this.keys.KeyW && !this.keys.KeyA && !this.keys.KeyS && !this.keys.KeyD) {
+      return;
+    }
+
+    // Base move speed (Shift = 2x boost)
+    const baseSpeed = 0.05;
+    const moveSpeed = this.keys.Shift ? baseSpeed * 2 : baseSpeed;
+
+    // Calculate camera forward direction (XZ plane only, Y fixed for RTS feel)
+    const forward = new THREE.Vector3();
+    this.camera.getWorldDirection(forward);
+    forward.y = 0; // Keep movement on horizontal plane
+    forward.normalize();
+
+    // Calculate camera right direction
+    const right = new THREE.Vector3();
+    right.crossVectors(forward, new THREE.Vector3(0, 0, 1));
+    right.normalize();
+
+    // Calculate movement delta based on WASD input
+    const delta = new THREE.Vector3(0, 0, 0);
+
+    if (this.keys.KeyW) delta.add(forward);
+    if (this.keys.KeyS) delta.sub(forward);
+    if (this.keys.KeyD) delta.add(right);
+    if (this.keys.KeyA) delta.sub(right);
+
+    // Normalize diagonal movement to prevent faster speed
+    if (delta.length() > 0) {
+      delta.normalize().multiplyScalar(moveSpeed);
+
+      // Move both camera and orbit target together
+      this.camera.position.add(delta);
+      this.controls.target.add(delta);
+
+      // Boundary clamping to keep camera near simulation area
+      const boundary = 20;
+      this.camera.position.x = Math.max(-boundary, Math.min(boundary, this.camera.position.x));
+      this.camera.position.y = Math.max(-boundary, Math.min(boundary, this.camera.position.y));
+      this.controls.target.x = Math.max(-boundary, Math.min(boundary, this.controls.target.x));
+      this.controls.target.y = Math.max(-boundary, Math.min(boundary, this.controls.target.y));
+    }
   }
 
   #cacheDom() {
@@ -538,6 +593,15 @@ export class EnergyLifeSimulation {
 
   #setupKeyboard() {
     document.addEventListener('keydown', (event) => {
+      // WASD + Shift for camera movement
+      if (event.code === 'KeyW' || event.code === 'KeyA' || event.code === 'KeyS' || event.code === 'KeyD') {
+        this.keys[event.code] = true;
+      }
+      if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+        this.keys.Shift = true;
+      }
+
+      // Simulation control shortcuts
       if (event.code === 'Space') {
         event.preventDefault();
         this.isPaused = !this.isPaused;
@@ -568,6 +632,16 @@ export class EnergyLifeSimulation {
             parseInt(btn.dataset.speed, 10) === this.speedMultiplier,
           );
         });
+      }
+    });
+
+    document.addEventListener('keyup', (event) => {
+      // Release WASD + Shift keys
+      if (event.code === 'KeyW' || event.code === 'KeyA' || event.code === 'KeyS' || event.code === 'KeyD') {
+        this.keys[event.code] = false;
+      }
+      if (event.code === 'ShiftLeft' || event.code === 'ShiftRight') {
+        this.keys.Shift = false;
       }
     });
   }
