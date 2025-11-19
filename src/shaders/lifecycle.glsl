@@ -52,16 +52,32 @@ float laplacian(vec2 uv) {
 }
 
 /**
- * Sigmoid activation function.
- * Maps input to smooth transition from 0 to 1.
+ * Leaky ReLU activation function.
+ * Prevents Vanishing Gradient problem that kills energy.
+ *
+ * Why not Sigmoid?
+ * - Sigmoid squashes values to [0,1], causing energy to vanish
+ * - Small values → 0.00001 → 0.00000001 → DEAD
+ *
+ * Why Leaky ReLU?
+ * - Above threshold: LINEAR growth → EXPLOSIVE propagation
+ * - Below threshold: 10% leak → keeps the "spark" alive
  *
  * @param x Input value
- * @param threshold Center point of transition
- * @param steepness How sharp the transition is
- * @return Activated value [0, 1]
+ * @param threshold Activation threshold
+ * @param steepness Slope multiplier for superthreshold values
+ * @param leak Leak coefficient for subthreshold values (default: 0.1)
+ * @return Activated value (unbounded, can explode!)
  */
-float sigmoid(float x, float threshold, float steepness) {
-    return 1.0 / (1.0 + exp(-steepness * (x - threshold)));
+float leakyReLU(float x, float threshold, float steepness, float leak) {
+    float excess = x - threshold;
+    if (excess > 0.0) {
+        // Superthreshold: LINEAR amplification (allows explosion)
+        return excess * steepness;
+    } else {
+        // Subthreshold: Keep 10% alive (prevents total death)
+        return excess * leak;
+    }
 }
 
 void main() {
@@ -141,15 +157,20 @@ void main() {
     // ========================================================================
     // "비선형 피드백이 생기고... 임계점을 넘으면"
     //
-    // Not linear mixing. THRESHOLD FIRING.
-    // Below threshold → 0. Above threshold → explosive activation.
+    // CRITICAL FIX: Replaced Sigmoid with Leaky ReLU
+    // - Sigmoid caused VANISHING GRADIENT → energy death
+    // - Leaky ReLU allows EXPLOSIVE propagation + keeps spark alive
 
     // Apply matter resistance: high structure suppresses new activation
     // This creates the feedback loop from Phase 3
     float effectiveThreshold = activationThreshold + currentMatter * matterResistance;
 
-    // FIRING: Sigmoid activation
-    float activation = sigmoid(attentionScore, effectiveThreshold, activationSteepness);
+    // FIRING: Leaky ReLU activation (not Sigmoid!)
+    float activation = leakyReLU(attentionScore, effectiveThreshold, activationSteepness, 0.1);
+
+    // Soft clamp to prevent runaway explosion (but allow strong propagation)
+    // Using tanh for smooth saturation instead of hard clamp
+    activation = tanh(activation * 0.5) * 2.0; // Scale down, squash, scale up
 
     // ========================================================================
     // PHASE 3: NEW DIMENSION (Residual Stream - The Structure)
