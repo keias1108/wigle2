@@ -142,7 +142,7 @@ export const DISPLAY_MESH_RESOLUTION = 256;
  * Controls how much energy values affect Z-axis
  * Higher = more dramatic peaks and valleys
  */
-export const DISPLACEMENT_SCALE = 0.5;
+export const DISPLACEMENT_SCALE = 0.15;
 
 /**
  * Camera distance from origin
