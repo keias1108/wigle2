@@ -67,6 +67,7 @@ export class EnergyLifeSimulation {
     this.chartCanvasSelector = chartCanvasSelector;
 
     this.params = { ...DEFAULT_PARAMS };
+    this.simulationSize = SIMULATION_SIZE;
 
     this.scene = null;
     this.camera = null;
@@ -164,6 +165,7 @@ export class EnergyLifeSimulation {
     this.dom.toggleChart = document.getElementById('toggleChart');
     this.dom.chart = document.getElementById('chart');
     this.dom.toggleControls = document.getElementById('toggleControls');
+    this.dom.simulationSize = document.getElementById('simulationSize');
     this.dom.savePreset = document.getElementById('savePreset');
     this.dom.loadPreset = document.getElementById('loadPreset');
     this.dom.speedButtons = Array.from(document.querySelectorAll('.speed-btn'));
@@ -228,8 +230,8 @@ export class EnergyLifeSimulation {
 
   #initComputeRenderer() {
     this.computeRenderer = new GPUComputationRenderer(
-      SIMULATION_SIZE,
-      SIMULATION_SIZE,
+      this.simulationSize,
+      this.simulationSize,
       this.renderer,
     );
 
@@ -261,7 +263,7 @@ export class EnergyLifeSimulation {
       instabilityFactor: { value: this.params.instabilityFactor },
       interactionTexture: { value: this.interactionTexture },
       texelSize: {
-        value: new THREE.Vector2(1.0 / SIMULATION_SIZE, 1.0 / SIMULATION_SIZE),
+        value: new THREE.Vector2(1.0 / this.simulationSize, 1.0 / this.simulationSize),
       },
     };
 
@@ -403,6 +405,16 @@ export class EnergyLifeSimulation {
           console.error('Failed to load preset:', error);
           alert('Failed to load preset. It may be corrupted.');
         }
+      });
+    }
+
+    if (this.dom.simulationSize) {
+      this.dom.simulationSize.addEventListener('change', (event) => {
+        const newSize = parseInt(event.target.value, 10);
+        if (newSize === this.simulationSize) return;
+
+        this.simulationSize = newSize;
+        this.#reinitializeSimulation();
       });
     }
   }
@@ -682,7 +694,7 @@ export class EnergyLifeSimulation {
         this.interactionTexture,
         this.mousePos,
         this.interactionMode,
-        SIMULATION_SIZE,
+        this.simulationSize,
         INTERACTION_RADIUS,
       );
     }
@@ -720,5 +732,18 @@ export class EnergyLifeSimulation {
       this.frameCount = 0;
       this.lastTime = currentTime;
     }
+  }
+
+  #reinitializeSimulation() {
+    // Dispose old compute renderer
+    if (this.computeRenderer) {
+      this.computeRenderer.dispose();
+    }
+
+    // Clear chart history
+    this.chartHistory = [];
+
+    // Reinitialize compute renderer with new size
+    this.#initComputeRenderer();
   }
 }

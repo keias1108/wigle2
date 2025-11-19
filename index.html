@@ -181,6 +181,21 @@
         font-size: 0.8em;
       }
 
+      select {
+        width: 100%;
+        padding: 5px;
+        background: rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #00ffcc;
+        border-radius: 3px;
+        font-size: 0.8em;
+        cursor: pointer;
+      }
+
+      select:hover {
+        border-color: rgba(0, 255, 204, 0.5);
+      }
+
       #chart {
         position: fixed;
         bottom: 10px;
@@ -319,6 +334,22 @@
         <div class="preset-buttons">
           <button class="preset-btn" id="savePreset">Save</button>
           <button class="preset-btn" id="loadPreset">Load</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <h3>Simulation Settings</h3>
+
+        <div class="control-item">
+          <label for="simulationSize">Grid Size</label>
+          <select id="simulationSize">
+            <option value="64">64 × 64</option>
+            <option value="128">128 × 128</option>
+            <option value="256">256 × 256</option>
+            <option value="512" selected>512 × 512</option>
+            <option value="1024">1024 × 1024</option>
+            <option value="2048">2048 × 2048</option>
+          </select>
         </div>
       </div>
 
