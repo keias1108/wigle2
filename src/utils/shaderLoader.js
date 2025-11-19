@@ -147,12 +147,14 @@ export function getDisplayVertexShader() {
 uniform sampler2D fieldTexture;
 uniform float displacementScale;
 varying vec2 vUv;
+varying float vHeight;
 
 void main() {
     vUv = uv;
 
     // Sample energy value from texture
     float energy = texture2D(fieldTexture, uv).r;
+    vHeight = energy;
 
     // Create displaced position (2.5D terrain effect)
     vec3 displaced = position;
@@ -170,7 +172,9 @@ void main() {
 export function getDisplayFragmentShader() {
   return `
 uniform sampler2D fieldTexture;
+uniform float displacementScale;
 varying vec2 vUv;
+varying float vHeight;
 
 vec3 energyGradient(float energy) {
     vec3 color;
@@ -197,8 +201,35 @@ vec3 energyGradient(float energy) {
 
 void main() {
     float energy = texture2D(fieldTexture, vUv).x;
-    vec3 color = energyGradient(energy);
-    gl_FragColor = vec4(color, 1.0);
+
+    // Calculate normal from height differences for lighting
+    float texelSize = 1.0 / 512.0;  // Adjust based on texture resolution
+    float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).x;
+    float heightR = texture2D(fieldTexture, vUv + vec2(texelSize, 0.0)).x;
+    float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).x;
+    float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).x;
+
+    // Calculate gradients (slope)
+    float dx = (heightR - heightL) * displacementScale;
+    float dy = (heightU - heightD) * displacementScale;
+
+    // Normal vector (higher displacement = steeper normal)
+    vec3 normal = normalize(vec3(-dx * 30.0, -dy * 30.0, 1.0));
+
+    // Light from top-right, slightly forward
+    vec3 lightDir = normalize(vec3(0.5, 0.3, 1.0));
+
+    // Diffuse lighting
+    float diffuse = max(dot(normal, lightDir), 0.0);
+
+    // Ambient + diffuse
+    float lighting = 0.4 + 0.6 * diffuse;
+
+    // Apply lighting to color
+    vec3 baseColor = energyGradient(energy);
+    vec3 litColor = baseColor * lighting;
+
+    gl_FragColor = vec4(litColor, 1.0);
 }
 `;
 }
