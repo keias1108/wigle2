@@ -177,25 +177,28 @@ uniform float texelSize;
 varying vec2 vUv;
 varying float vHeight;
 
+// Cosine palette for smooth color transitions
+// Based on Inigo Quilez's technique
+vec3 cosinePalette(float t, vec3 a, vec3 b, vec3 c, vec3 d) {
+    return a + b * cos(6.28318 * (c * t + d));
+}
+
 vec3 energyGradient(float energy) {
-    vec3 color;
+    // Use cosine palette for smooth blue → cyan → green → yellow → white
+    vec3 a = vec3(0.5, 0.5, 0.5);    // DC offset
+    vec3 b = vec3(0.5, 0.5, 0.5);    // Amplitude
+    vec3 c = vec3(1.0, 1.0, 1.0);    // Frequency
+    vec3 d = vec3(0.0, 0.10, 0.20);  // Phase shift (blue → cyan → green → yellow)
 
-    if (energy < 0.1) {
-        color = mix(vec3(0.0, 0.0, 0.0), vec3(0.0, 0.0, 0.2), energy * 10.0);
-    } else if (energy < 0.3) {
-        color = mix(vec3(0.0, 0.0, 0.2), vec3(0.0, 0.3, 0.8), (energy - 0.1) * 5.0);
-    } else if (energy < 0.5) {
-        color = mix(vec3(0.0, 0.3, 0.8), vec3(0.0, 0.8, 1.0), (energy - 0.3) * 5.0);
-    } else if (energy < 0.7) {
-        color = mix(vec3(0.0, 0.8, 1.0), vec3(0.2, 1.0, 0.3), (energy - 0.5) * 5.0);
-    } else if (energy < 0.85) {
-        color = mix(vec3(0.2, 1.0, 0.3), vec3(1.0, 1.0, 0.0), (energy - 0.7) * 6.67);
-    } else {
-        color = mix(vec3(1.0, 1.0, 0.0), vec3(1.0, 1.0, 1.0), (energy - 0.85) * 6.67);
-        color += vec3(0.2) * sin(energy * 50.0);
-    }
+    vec3 color = cosinePalette(energy, a, b, c, d);
 
+    // Enhance brightness at high energy levels
     color += energy * 0.15;
+
+    // Add subtle sparkle at very high energy (smoother than before)
+    if (energy > 0.85) {
+        color += vec3(0.1) * sin(energy * 30.0) * smoothstep(0.85, 1.0, energy);
+    }
 
     return color;
 }
@@ -213,8 +216,8 @@ void main() {
     float dx = (heightR - heightL) * displacementScale;
     float dy = (heightU - heightD) * displacementScale;
 
-    // Normal vector (subtle bump mapping)
-    vec3 normal = normalize(vec3(-dx * 8.0, -dy * 8.0, 1.0));
+    // Normal vector (very subtle bump mapping for smooth appearance)
+    vec3 normal = normalize(vec3(-dx * 3.0, -dy * 3.0, 1.0));
 
     // Light from directly above with slight angle
     vec3 lightDir = normalize(vec3(0.2, 0.2, 1.0));
@@ -222,8 +225,8 @@ void main() {
     // Diffuse lighting
     float diffuse = max(dot(normal, lightDir), 0.0);
 
-    // More ambient, less diffuse for natural look
-    float lighting = 0.65 + 0.35 * diffuse;
+    // Much more ambient, minimal diffuse for natural, non-flickering look
+    float lighting = 0.75 + 0.25 * diffuse;
 
     // Apply lighting to color
     vec3 baseColor = energyGradient(energy);
