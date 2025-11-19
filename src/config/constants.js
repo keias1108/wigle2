@@ -100,6 +100,13 @@ export const CHART_GRID_DIVISIONS = 4;
  */
 export const FPS_UPDATE_INTERVAL = 1000;
 
+/**
+ * Average energy computation throttle (frames)
+ * Compute average every N frames instead of every frame
+ * Higher = better performance, lower = more responsive feedback
+ */
+export const AVERAGE_COMPUTE_THROTTLE = 2;
+
 // ========== Interaction Modes ==========
 /** Available interaction modes for mouse clicks */
 export const INTERACTION_MODES = ['energy', 'attract', 'repel'];

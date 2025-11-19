@@ -10,6 +10,7 @@ import {
   CHART_CANVAS_HEIGHT,
   CHART_GRID_DIVISIONS,
   FPS_UPDATE_INTERVAL,
+  AVERAGE_COMPUTE_THROTTLE,
   MIN_CANVAS_WIDTH,
   MIN_CANVAS_HEIGHT,
   MAX_CANVAS_WIDTH_OFFSET,
@@ -76,6 +77,7 @@ export class EnergyLifeSimulation {
     this.speedMultiplier = 1;
     this.frameCount = 0;
     this.lastTime = performance.now();
+    this.computeFrameCounter = 0; // For throttling average computation
 
     this.interactionTexture = null;
     this.interactionMode = 'energy';
@@ -108,6 +110,7 @@ export class EnergyLifeSimulation {
     this.#cacheDom();
     this.#setupCanvas();
     this.#setupRenderer();
+    this.#setupWebGLErrorHandling();
     this.#initComputeRenderer();
     this.#setupDisplay();
     this.#setupControls();
@@ -124,6 +127,7 @@ export class EnergyLifeSimulation {
     if (!this.isPaused && this.speedMultiplier > 0) {
       for (let i = 0; i < this.speedMultiplier; i++) {
         this.computeRenderer.compute();
+        this.computeFrameCounter++;
       }
 
       this.#updateInteractionTexture();
@@ -132,10 +136,14 @@ export class EnergyLifeSimulation {
         this.computeVariables.field,
       );
 
-      const average = this.#computeAverage(currentRenderTarget.texture);
-      this.computeVariables.field.material.uniforms.globalAverage.value =
-        average;
-      this.#updateAverageEnergy(average);
+      // Throttle average computation for better performance
+      if (this.computeFrameCounter >= AVERAGE_COMPUTE_THROTTLE) {
+        const average = this.#computeAverage(currentRenderTarget.texture);
+        this.computeVariables.field.material.uniforms.globalAverage.value =
+          average;
+        this.#updateAverageEnergy(average);
+        this.computeFrameCounter = 0;
+      }
 
       this.material.uniforms.fieldTexture.value = currentRenderTarget.texture;
     }
@@ -176,6 +184,42 @@ export class EnergyLifeSimulation {
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
+  }
+
+  /**
+   * Sets up WebGL error handling
+   * Handles context loss/restoration gracefully
+   * @private
+   */
+  #setupWebGLErrorHandling() {
+    this.dom.canvas.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      console.warn('WebGL context lost. Pausing simulation...');
+      this.isPaused = true;
+
+      // Show user-friendly message
+      if (this.dom.avgLabel) {
+        this.dom.avgLabel.textContent = 'WebGL context lost';
+      }
+    });
+
+    this.dom.canvas.addEventListener('webglcontextrestored', () => {
+      console.log('WebGL context restored. Reinitializing...');
+
+      // Reinitialize renderer and computation
+      try {
+        this.#setupRenderer();
+        this.#initComputeRenderer();
+        this.#setupDisplay();
+        this.isPaused = false;
+        console.log('Simulation restored successfully');
+      } catch (error) {
+        console.error('Failed to restore WebGL context:', error);
+        alert(
+          'Failed to restore WebGL. Please refresh the page.',
+        );
+      }
+    });
   }
 
   #initComputeRenderer() {
@@ -311,33 +355,50 @@ export class EnergyLifeSimulation {
 
     if (this.dom.savePreset) {
       this.dom.savePreset.addEventListener('click', () => {
-        const preset = JSON.stringify(this.params);
-        localStorage.setItem('energyLifePreset', preset);
-        alert('Preset saved!');
+        try {
+          const preset = JSON.stringify(this.params);
+          localStorage.setItem('energyLifePreset', preset);
+          alert('Preset saved!');
+        } catch (error) {
+          console.error('Failed to save preset:', error);
+          if (error.name === 'QuotaExceededError') {
+            alert('Storage quota exceeded. Cannot save preset.');
+          } else {
+            alert('Failed to save preset. Check console for details.');
+          }
+        }
       });
     }
 
     if (this.dom.loadPreset) {
       this.dom.loadPreset.addEventListener('click', () => {
-        const preset = localStorage.getItem('energyLifePreset');
-        if (!preset) return;
+        try {
+          const preset = localStorage.getItem('energyLifePreset');
+          if (!preset) {
+            alert('No saved preset found.');
+            return;
+          }
 
-        const loaded = JSON.parse(preset);
-        Object.keys(loaded).forEach((key) => {
-          if (!(key in this.params)) return;
-          this.params[key] = loaded[key];
-          const slider = document.getElementById(key);
-          const input = document.getElementById(`${key}Value`);
-          if (slider && input) {
-            slider.value = loaded[key];
-            input.value = loaded[key];
-          }
-          if (this.computeVariables.field?.material?.uniforms[key]) {
-            this.computeVariables.field.material.uniforms[key].value =
-              loaded[key];
-          }
-        });
-        alert('Preset loaded!');
+          const loaded = JSON.parse(preset);
+          Object.keys(loaded).forEach((key) => {
+            if (!(key in this.params)) return;
+            this.params[key] = loaded[key];
+            const slider = document.getElementById(key);
+            const input = document.getElementById(`${key}Value`);
+            if (slider && input) {
+              slider.value = loaded[key];
+              input.value = loaded[key];
+            }
+            if (this.computeVariables.field?.material?.uniforms[key]) {
+              this.computeVariables.field.material.uniforms[key].value =
+                loaded[key];
+            }
+          });
+          alert('Preset loaded!');
+        } catch (error) {
+          console.error('Failed to load preset:', error);
+          alert('Failed to load preset. It may be corrupted.');
+        }
       });
     }
   }
