@@ -16,7 +16,7 @@ import { KERNEL_SIZE } from '../config/constants.js';
 export function getLifecycleShader() {
   // In a more advanced setup, this would load from lifecycle.glsl
   // For now, we inline the shader content
-  return `
+  const shader = `
 uniform sampler2D field;
 uniform float innerRadius;
 uniform float innerStrength;
@@ -147,6 +147,8 @@ void main() {
     gl_FragColor = vec4(newEnergy, newMatter, 0.0, 1.0);
 }
 `;
+  console.log('getLifecycleShader called, returning shader of length:', shader.length);
+  return shader;
 }
 
 /**
@@ -154,7 +156,7 @@ void main() {
  * @returns {string} GLSL vertex shader code
  */
 export function getDisplayVertexShader() {
-  return `
+  const shader = `
 uniform sampler2D fieldTexture;
 uniform float displacementScale;
 varying vec2 vUv;
@@ -175,6 +177,8 @@ void main() {
     gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
 }
 `;
+  console.log('getDisplayVertexShader called, returning shader of length:', shader.length);
+  return shader;
 }
 
 /**
@@ -182,7 +186,7 @@ void main() {
  * @returns {string} GLSL fragment shader code
  */
 export function getDisplayFragmentShader() {
-  return `
+  const shader = `
 uniform sampler2D fieldTexture;
 uniform float displacementScale;
 uniform float texelSize;
@@ -267,6 +271,8 @@ void main() {
     gl_FragColor = vec4(finalColor, 1.0);
 }
 `;
+  console.log('getDisplayFragmentShader called, returning shader of length:', shader.length);
+  return shader;
 }
 
 /**

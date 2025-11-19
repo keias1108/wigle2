@@ -376,15 +376,26 @@ export class EnergyLifeSimulation {
       DISPLAY_MESH_RESOLUTION
     );
 
+    // Debug: Check if shader functions are loaded
+    const vertShader = getDisplayVertexShader();
+    const fragShader = getDisplayFragmentShader();
+    console.log('Vertex shader loaded:', vertShader ? 'YES' : 'NO');
+    console.log('Fragment shader loaded:', fragShader ? 'YES' : 'NO');
+    console.log('Scene exists:', this.scene ? 'YES' : 'NO');
+    console.log('DISPLACEMENT_SCALE:', DISPLACEMENT_SCALE);
+    console.log('simulationSize:', this.simulationSize);
+
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         fieldTexture: { value: null }, // Dual-channel: R=Energy (color), G=Matter (geometry)
         displacementScale: { value: DISPLACEMENT_SCALE },
         texelSize: { value: 1.0 / this.simulationSize },
       },
-      vertexShader: getDisplayVertexShader(),
-      fragmentShader: getDisplayFragmentShader(),
+      vertexShader: vertShader,
+      fragmentShader: fragShader,
     });
+
+    console.log('Material created:', this.material ? 'YES' : 'NO');
 
     const mesh = new THREE.Mesh(geometry, this.material);
     this.scene.add(mesh);
