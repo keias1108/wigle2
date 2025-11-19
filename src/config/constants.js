@@ -154,3 +154,11 @@ export const CAMERA_DISTANCE = 2.5;
  * Camera field of view in degrees
  */
 export const CAMERA_FOV = 60;
+
+/**
+ * HeightMap temporal smoothing factor (lerp inertia)
+ * Lower = smoother, more viscous movement (honey-like)
+ * Higher = faster response, more jittery
+ * Range: 0.01 (very smooth) to 0.5 (fast response)
+ */
+export const HEIGHTMAP_SMOOTHNESS = 0.1;
