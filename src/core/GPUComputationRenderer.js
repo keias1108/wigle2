@@ -228,4 +228,34 @@ export class GPUComputationRenderer {
                     }
                 `;
   }
+
+  /**
+   * Disposes of all GPU resources
+   *
+   * Cleans up render targets, materials, and textures to free GPU memory.
+   */
+  dispose() {
+    // Dispose all variable render targets and materials
+    for (let i = 0; i < this.variables.length; i++) {
+      const variable = this.variables[i];
+
+      // Dispose render targets
+      for (let j = 0; j < variable.renderTargets.length; j++) {
+        variable.renderTargets[j].dispose();
+      }
+
+      // Dispose material
+      if (variable.material) {
+        variable.material.dispose();
+      }
+    }
+
+    // Dispose passthrough shader
+    if (this.passThruShader) {
+      this.passThruShader.dispose();
+    }
+
+    // Clear variables array
+    this.variables = [];
+  }
 }
