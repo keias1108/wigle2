@@ -189,15 +189,15 @@ export class EnergyLifeSimulation {
   #setupRenderer() {
     this.scene = new THREE.Scene();
 
-    // Perspective camera for 3D terrain effect
+    // Top-down view with perspective for 2.5D effect
     const aspect = this.canvasWidth / this.canvasHeight;
     this.camera = new THREE.PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 100);
-    this.camera.position.set(0, -CAMERA_DISTANCE, CAMERA_DISTANCE * 0.8);
+    this.camera.position.set(0, 0, CAMERA_DISTANCE);
     this.camera.lookAt(0, 0, 0);
 
     this.renderer = new THREE.WebGLRenderer({
       canvas: this.dom.canvas,
-      antialias: true,  // Enable for smoother 3D
+      antialias: true,
       preserveDrawingBuffer: true,
     });
     this.renderer.setSize(this.canvasWidth, this.canvasHeight);
@@ -301,6 +301,7 @@ export class EnergyLifeSimulation {
       uniforms: {
         fieldTexture: { value: null },
         displacementScale: { value: DISPLACEMENT_SCALE },
+        texelSize: { value: 1.0 / this.simulationSize },
       },
       vertexShader: getDisplayVertexShader(),
       fragmentShader: getDisplayFragmentShader(),
