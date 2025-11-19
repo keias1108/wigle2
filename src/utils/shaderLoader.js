@@ -173,6 +173,7 @@ export function getDisplayFragmentShader() {
   return `
 uniform sampler2D fieldTexture;
 uniform float displacementScale;
+uniform float texelSize;
 varying vec2 vUv;
 varying float vHeight;
 
@@ -203,27 +204,26 @@ void main() {
     float energy = texture2D(fieldTexture, vUv).x;
 
     // Calculate normal from height differences for lighting
-    float texelSize = 1.0 / 512.0;  // Adjust based on texture resolution
     float heightL = texture2D(fieldTexture, vUv + vec2(-texelSize, 0.0)).x;
     float heightR = texture2D(fieldTexture, vUv + vec2(texelSize, 0.0)).x;
     float heightD = texture2D(fieldTexture, vUv + vec2(0.0, -texelSize)).x;
     float heightU = texture2D(fieldTexture, vUv + vec2(0.0, texelSize)).x;
 
-    // Calculate gradients (slope)
+    // Calculate gradients (slope) - reduced for subtler lighting
     float dx = (heightR - heightL) * displacementScale;
     float dy = (heightU - heightD) * displacementScale;
 
-    // Normal vector (higher displacement = steeper normal)
-    vec3 normal = normalize(vec3(-dx * 30.0, -dy * 30.0, 1.0));
+    // Normal vector (subtle bump mapping)
+    vec3 normal = normalize(vec3(-dx * 8.0, -dy * 8.0, 1.0));
 
-    // Light from top-right, slightly forward
-    vec3 lightDir = normalize(vec3(0.5, 0.3, 1.0));
+    // Light from directly above with slight angle
+    vec3 lightDir = normalize(vec3(0.2, 0.2, 1.0));
 
     // Diffuse lighting
     float diffuse = max(dot(normal, lightDir), 0.0);
 
-    // Ambient + diffuse
-    float lighting = 0.4 + 0.6 * diffuse;
+    // More ambient, less diffuse for natural look
+    float lighting = 0.65 + 0.35 * diffuse;
 
     // Apply lighting to color
     vec3 baseColor = energyGradient(energy);
